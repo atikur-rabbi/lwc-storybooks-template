@@ -19,13 +19,7 @@
     "babel-loader": "^8.0.6",
     "typescript": "^3.4.5",
     "webpack": "^4.39.3",
-    "webpack-cli": "^3.3.7",
-
-
-    "@lwc/rollup-plugin": "^2.23.2",
-    "@rollup/plugin-replace": "^4.0.0",
-    "lwc": "^2.23.2",
-    "rollup": "^2.79.0"
+    "webpack-cli": "^3.3.7"
   },
   "dependencies": {
     "@salesforce-ux/design-system": "2.11.0-beta.1",
@@ -38,6 +32,6 @@
     "storybook2": "start-storybook -s ./public -p 6006",
     "build-storybook": "build-storybook",
 
-    "watch": "rollup -c --watch"
+    "watch": "cd components && rollup -c --watch"
   }
 }

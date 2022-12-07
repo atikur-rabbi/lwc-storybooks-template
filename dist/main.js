@@ -418,7 +418,7 @@ const lwcRuntimeFlags = _globalThis.lwcRuntimeFlags;
  */
 // Only used in LWC's Karma tests
 // @ts-ignore
-if (process.env.NODE_ENV !== 'production' && typeof __karma__ !== 'undefined') {
+if ( typeof __karma__ !== 'undefined') {
   window.addEventListener('test-dummy-flag', () => {
     let hasFlag = false;
     if (lwcRuntimeFlags.DUMMY_TEST_FLAG) {
@@ -443,7 +443,7 @@ if (process.env.NODE_ENV !== 'production' && typeof __karma__ !== 'undefined') {
  */
 // Only used in LWC's Karma tests
 // @ts-ignore
-if (process.env.NODE_ENV !== 'production' && typeof __karma__ !== 'undefined') {
+if ( typeof __karma__ !== 'undefined') {
   window.addEventListener('test-dummy-flag', () => {
     let hasFlag = false;
     if (lwcRuntimeFlags.DUMMY_TEST_FLAG) {
@@ -469,7 +469,7 @@ const SPACE_CHAR = 32;
 const EmptyObject = seal(create(null));
 const EmptyArray = seal([]);
 function flushCallbackQueue() {
-  if (process.env.NODE_ENV !== 'production') {
+  {
     if (nextTickCallbackQueue.length === 0) {
       throw new Error(`Internal Error: If callbackQueue is scheduled, it is because there must be at least one callback on this pending queue.`);
     }
@@ -481,7 +481,7 @@ function flushCallbackQueue() {
   }
 }
 function addCallbackToNextTick(callback) {
-  if (process.env.NODE_ENV !== 'production') {
+  {
     if (!isFunction$1(callback)) {
       throw new Error(`Internal Error: addCallbackToNextTick() can only accept a function callback`);
     }
@@ -531,7 +531,7 @@ function flattenStylesheets(stylesheets) {
 }
 // Set a ref (lwc:ref) on a VM, from a template API
 function setRefVNode(vm, ref, vnode) {
-  if (process.env.NODE_ENV !== 'production' && isUndefined$1(vm.refVNodes)) {
+  if ( isUndefined$1(vm.refVNodes)) {
     throw new Error('refVNodes must be defined when setting a ref');
   }
   // If this method is called, then vm.refVNodes is set as the template has refs.
@@ -715,11 +715,6 @@ function log(method, message, vm) {
   let msg = `[LWC ${method}]: ${message}`;
   if (!isUndefined$1(vm)) {
     msg = `${msg}\n${getComponentStack(vm)}`;
-  }
-  if (process.env.NODE_ENV === 'test') {
-    /* eslint-disable-next-line no-console */
-    console[method](msg);
-    return;
   }
   try {
     throw new Error(msg);
@@ -926,27 +921,15 @@ function generateAccessorDescriptor(options) {
 }
 let isDomMutationAllowed = false;
 function unlockDomMutation() {
-  if (process.env.NODE_ENV === 'production') {
-    // this method should never leak to prod
-    throw new ReferenceError();
-  }
   isDomMutationAllowed = true;
 }
 function lockDomMutation() {
-  if (process.env.NODE_ENV === 'production') {
-    // this method should never leak to prod
-    throw new ReferenceError();
-  }
   isDomMutationAllowed = false;
 }
 function logMissingPortalError(name, type) {
   return logError(`The \`${name}\` ${type} is available only on elements that use the \`lwc:dom="manual"\` directive.`);
 }
 function patchElementWithRestrictions(elm, options) {
-  if (process.env.NODE_ENV === 'production') {
-    // this method should never leak to prod
-    throw new ReferenceError();
-  }
   const originalOuterHTMLDescriptor = getPropertyDescriptor(elm, 'outerHTML');
   const descriptors = {
     outerHTML: generateAccessorDescriptor({
@@ -1032,10 +1015,6 @@ function patchElementWithRestrictions(elm, options) {
   defineProperties(elm, descriptors);
 }
 function getShadowRootRestrictionsDescriptors(sr) {
-  if (process.env.NODE_ENV === 'production') {
-    // this method should never leak to prod
-    throw new ReferenceError();
-  }
   // Disallowing properties in dev mode only to avoid people doing the wrong
   // thing when using the real shadow root, because if that's the case,
   // the component will not work when running with synthetic shadow.
@@ -1076,10 +1055,6 @@ function getShadowRootRestrictionsDescriptors(sr) {
 // Custom Elements Restrictions:
 // -----------------------------
 function getCustomElementRestrictionsDescriptors(elm) {
-  if (process.env.NODE_ENV === 'production') {
-    // this method should never leak to prod
-    throw new ReferenceError();
-  }
   const originalAddEventListener = elm.addEventListener;
   const originalInnerHTMLDescriptor = getPropertyDescriptor(elm, 'innerHTML');
   const originalOuterHTMLDescriptor = getPropertyDescriptor(elm, 'outerHTML');
@@ -1124,10 +1099,6 @@ function getCustomElementRestrictionsDescriptors(elm) {
   };
 }
 function getComponentRestrictionsDescriptors() {
-  if (process.env.NODE_ENV === 'production') {
-    // this method should never leak to prod
-    throw new ReferenceError();
-  }
   return {
     tagName: generateAccessorDescriptor({
       get() {
@@ -1140,10 +1111,6 @@ function getComponentRestrictionsDescriptors() {
 }
 
 function getLightningElementPrototypeRestrictionsDescriptors(proto) {
-  if (process.env.NODE_ENV === 'production') {
-    // this method should never leak to prod
-    throw new ReferenceError();
-  }
   const originalDispatchEvent = proto.dispatchEvent;
   const descriptors = {
     dispatchEvent: generateDataDescriptor({
@@ -1540,7 +1507,7 @@ class ReactiveProxyHandler extends BaseProxyHandler {
   }
   setPrototypeOf(shadowTarget, prototype) {
     /* istanbul ignore else */
-    if (process.env.NODE_ENV !== 'production') {
+    {
       throw new Error(`Invalid setPrototypeOf invocation for reactive proxy ${toString(this.originalTarget)}. Prototype of reactive objects cannot be changed.`);
     }
   }
@@ -1588,6 +1555,7 @@ class ReactiveProxyHandler extends BaseProxyHandler {
     valueMutated(originalTarget, key);
     return true;
   }
+  /*LWC compiler v2.32.1*/
 }
 const getterMap = new WeakMap();
 const setterMap = new WeakMap();
@@ -1616,7 +1584,7 @@ class ReadOnlyHandler extends BaseProxyHandler {
     const handler = this;
     const set = function (v) {
       /* istanbul ignore else */
-      if (process.env.NODE_ENV !== 'production') {
+      {
         const {
           originalTarget
         } = handler;
@@ -1628,30 +1596,26 @@ class ReadOnlyHandler extends BaseProxyHandler {
   }
   set(shadowTarget, key, value) {
     /* istanbul ignore else */
-    if (process.env.NODE_ENV !== 'production') {
+    {
       const {
         originalTarget
       } = this;
       const msg = isArray(originalTarget) ? `Invalid mutation: Cannot mutate array at index ${key.toString()}. Array is read-only.` : `Invalid mutation: Cannot set "${key.toString()}" on "${originalTarget}". "${originalTarget}" is read-only.`;
       throw new Error(msg);
     }
-    /* istanbul ignore next */
-    return false;
   }
   deleteProperty(shadowTarget, key) {
     /* istanbul ignore else */
-    if (process.env.NODE_ENV !== 'production') {
+    {
       const {
         originalTarget
       } = this;
       throw new Error(`Invalid mutation: Cannot delete "${key.toString()}" on "${originalTarget}". "${originalTarget}" is read-only.`);
     }
-    /* istanbul ignore next */
-    return false;
   }
   setPrototypeOf(shadowTarget, prototype) {
     /* istanbul ignore else */
-    if (process.env.NODE_ENV !== 'production') {
+    {
       const {
         originalTarget
       } = this;
@@ -1660,26 +1624,23 @@ class ReadOnlyHandler extends BaseProxyHandler {
   }
   preventExtensions(shadowTarget) {
     /* istanbul ignore else */
-    if (process.env.NODE_ENV !== 'production') {
+    {
       const {
         originalTarget
       } = this;
       throw new Error(`Invalid mutation: Cannot preventExtensions on ${originalTarget}". "${originalTarget} is read-only.`);
     }
-    /* istanbul ignore next */
-    return false;
   }
   defineProperty(shadowTarget, key, descriptor) {
     /* istanbul ignore else */
-    if (process.env.NODE_ENV !== 'production') {
+    {
       const {
         originalTarget
       } = this;
       throw new Error(`Invalid mutation: Cannot defineProperty "${key.toString()}" on "${originalTarget}". "${originalTarget}" is read-only.`);
     }
-    /* istanbul ignore next */
-    return false;
   }
+  /*LWC compiler v2.32.1*/
 }
 function extract(objectOrArray) {
   if (isArray(objectOrArray)) {
@@ -1745,11 +1706,6 @@ function getGlobal() {
   return {};
 }
 function init$1() {
-  /* istanbul ignore if */
-  if (process.env.NODE_ENV === 'production') {
-    // this method should never leak to prod
-    throw new ReferenceError();
-  }
   const global = getGlobal();
   // Custom Formatter for Dev Tools. To enable this, open Chrome Dev Tools
   //  - Go to Settings,
@@ -1761,7 +1717,7 @@ function init$1() {
 }
 
 /* istanbul ignore else */
-if (process.env.NODE_ENV !== 'production') {
+{
   init$1();
 }
 function defaultValueIsObservable(value) {
@@ -1898,13 +1854,13 @@ function createBridgeToElementDescriptor(propName, descriptor) {
     configurable
   } = descriptor;
   if (!isFunction$1(get)) {
-    if (process.env.NODE_ENV !== 'production') {
+    {
       assert.fail(`Detected invalid public property descriptor for HTMLElement.prototype.${propName} definition. Missing the standard getter.`);
     }
     throw new TypeError();
   }
   if (!isFunction$1(set)) {
-    if (process.env.NODE_ENV !== 'production') {
+    {
       assert.fail(`Detected invalid public property descriptor for HTMLElement.prototype.${propName} definition. Missing the standard setter.`);
     }
     throw new TypeError();
@@ -1915,7 +1871,7 @@ function createBridgeToElementDescriptor(propName, descriptor) {
     get() {
       const vm = getAssociatedVM(this);
       if (isBeingConstructed(vm)) {
-        if (process.env.NODE_ENV !== 'production') {
+        {
           logError(`The value of property \`${propName}\` can't be read from the constructor because the owner component hasn't set the value yet. Instead, use the constructor to set a default value for the property.`, vm);
         }
         return;
@@ -1925,7 +1881,7 @@ function createBridgeToElementDescriptor(propName, descriptor) {
     },
     set(newValue) {
       const vm = getAssociatedVM(this);
-      if (process.env.NODE_ENV !== 'production') {
+      {
         const vmBeingRendered = getVMBeingRendered();
         assert.invariant(!isInvokingRender, `${vmBeingRendered}.render() method has side effects on the state of ${vm}.${propName}`);
         assert.invariant(!isUpdatingTemplate, `When updating the template of ${vmBeingRendered}, one of the accessors used by the template has side effects on the state of ${vm}.${propName}`);
@@ -1959,7 +1915,7 @@ const LightningElement = function () {
   const {
     bridge
   } = def;
-  if (process.env.NODE_ENV !== 'production') {
+  {
     const {
       assertInstanceOfHTMLElement
     } = vm.renderer;
@@ -1992,7 +1948,7 @@ const LightningElement = function () {
     vm.renderRoot = elm;
   }
   // Adding extra guard rails in DEV mode.
-  if (process.env.NODE_ENV !== 'production') {
+  {
     patchCustomElementWithRestrictions(elm);
     patchComponentWithRestrictions(component);
   }
@@ -2017,7 +1973,7 @@ function doAttachShadow(vm) {
   });
   vm.shadowRoot = shadowRoot;
   associateVM(shadowRoot, vm);
-  if (process.env.NODE_ENV !== 'production') {
+  {
     patchShadowRootWithRestrictions(shadowRoot);
   }
   return shadowRoot;
@@ -2048,7 +2004,7 @@ LightningElement.prototype = {
         addEventListener
       }
     } = vm;
-    if (process.env.NODE_ENV !== 'production') {
+    {
       const vmBeingRendered = getVMBeingRendered();
       assert.invariant(!isInvokingRender, `${vmBeingRendered}.render() method has side effects on the state of ${vm} by adding an event listener for "${type}".`);
       assert.invariant(!isUpdatingTemplate, `Updating the template of ${vmBeingRendered} has side effects on the state of ${vm} by adding an event listener for "${type}".`);
@@ -2139,7 +2095,7 @@ LightningElement.prototype = {
         setAttribute
       }
     } = vm;
-    if (process.env.NODE_ENV !== 'production') {
+    {
       assert.isFalse(isBeingConstructed(vm), `Failed to construct '${getComponentTag(vm)}': The result must not have attributes.`);
     }
     unlockAttribute(elm, name);
@@ -2154,7 +2110,7 @@ LightningElement.prototype = {
         setAttribute
       }
     } = vm;
-    if (process.env.NODE_ENV !== 'production') {
+    {
       assert.isFalse(isBeingConstructed(vm), `Failed to construct '${getComponentTag(vm)}': The result must not have attributes.`);
     }
     unlockAttribute(elm, name);
@@ -2169,7 +2125,7 @@ LightningElement.prototype = {
         getBoundingClientRect
       }
     } = vm;
-    if (process.env.NODE_ENV !== 'production') {
+    {
       warnIfInvokedDuringConstruction(vm, 'getBoundingClientRect()');
     }
     return getBoundingClientRect(elm);
@@ -2192,7 +2148,7 @@ LightningElement.prototype = {
         getClassList
       }
     } = vm;
-    if (process.env.NODE_ENV !== 'production') {
+    {
       // TODO [#1290]: this still fails in dev but works in production, eventually, we should
       // just throw in all modes
       assert.isFalse(isBeingConstructed(vm), `Failed to construct ${vm}: The result must not have attributes. Adding or tampering with classname in constructor is not allowed in a web component, use connectedCallback() instead.`);
@@ -2201,7 +2157,7 @@ LightningElement.prototype = {
   },
   get template() {
     const vm = getAssociatedVM(this);
-    if (process.env.NODE_ENV !== 'production') {
+    {
       if (vm.renderMode === 0 /* RenderMode.Light */) {
         logError('`this.template` returns null for light DOM components. Since there is no shadow, the rendered content can be accessed via `this` itself. e.g. instead of `this.template.querySelector`, use `this.querySelector`.');
       }
@@ -2211,7 +2167,7 @@ LightningElement.prototype = {
   get refs() {
     const vm = getAssociatedVM(this);
     if (isUpdatingTemplate) {
-      if (process.env.NODE_ENV !== 'production') {
+      {
         logError(`this.refs should not be called while ${getComponentTag(vm)} is rendering. Use this.refs only when the DOM is stable, e.g. in renderedCallback().`);
       }
       // If the template is in the process of being updated, then we don't want to go through the normal
@@ -2220,7 +2176,7 @@ LightningElement.prototype = {
       // based on `this.refs.bar`.
       return;
     }
-    if (process.env.NODE_ENV !== 'production') {
+    {
       warnIfInvokedDuringConstruction(vm, 'refs');
     }
     const {
@@ -2232,7 +2188,7 @@ LightningElement.prototype = {
     // if `this.refs` is called during the `connectedCallback` phase. The DOM elements have not been rendered yet,
     // so log a warning. Note we also check `isBeingConstructed()` to avoid a double warning (due to
     // `warnIfInvokedDuringConstruction` above).
-    if (process.env.NODE_ENV !== 'production' && isNull(cmpTemplate) && !isBeingConstructed(vm)) {
+    if ( isNull(cmpTemplate) && !isBeingConstructed(vm)) {
       logError(`this.refs is undefined for ${getComponentTag(vm)}. This is either because the attached template has no "lwc:ref" directive, or this.refs was ` + `invoked before renderedCallback(). Use this.refs only when the referenced HTML elements have ` + `been rendered to the DOM, such as within renderedCallback() or disconnectedCallback().`);
     }
     // For backwards compatibility with component written before template refs
@@ -2280,7 +2236,7 @@ LightningElement.prototype = {
   get children() {
     const vm = getAssociatedVM(this);
     const renderer = vm.renderer;
-    if (process.env.NODE_ENV !== 'production') {
+    {
       warnIfInvokedDuringConstruction(vm, 'children');
     }
     return renderer.getChildren(vm.elm);
@@ -2288,7 +2244,7 @@ LightningElement.prototype = {
   get childNodes() {
     const vm = getAssociatedVM(this);
     const renderer = vm.renderer;
-    if (process.env.NODE_ENV !== 'production') {
+    {
       warnIfInvokedDuringConstruction(vm, 'childNodes');
     }
     return renderer.getChildNodes(vm.elm);
@@ -2296,7 +2252,7 @@ LightningElement.prototype = {
   get firstChild() {
     const vm = getAssociatedVM(this);
     const renderer = vm.renderer;
-    if (process.env.NODE_ENV !== 'production') {
+    {
       warnIfInvokedDuringConstruction(vm, 'firstChild');
     }
     return renderer.getFirstChild(vm.elm);
@@ -2304,7 +2260,7 @@ LightningElement.prototype = {
   get firstElementChild() {
     const vm = getAssociatedVM(this);
     const renderer = vm.renderer;
-    if (process.env.NODE_ENV !== 'production') {
+    {
       warnIfInvokedDuringConstruction(vm, 'firstElementChild');
     }
     return renderer.getFirstElementChild(vm.elm);
@@ -2312,7 +2268,7 @@ LightningElement.prototype = {
   get lastChild() {
     const vm = getAssociatedVM(this);
     const renderer = vm.renderer;
-    if (process.env.NODE_ENV !== 'production') {
+    {
       warnIfInvokedDuringConstruction(vm, 'lastChild');
     }
     return renderer.getLastChild(vm.elm);
@@ -2320,7 +2276,7 @@ LightningElement.prototype = {
   get lastElementChild() {
     const vm = getAssociatedVM(this);
     const renderer = vm.renderer;
-    if (process.env.NODE_ENV !== 'production') {
+    {
       warnIfInvokedDuringConstruction(vm, 'lastElementChild');
     }
     return renderer.getLastElementChild(vm.elm);
@@ -2345,7 +2301,7 @@ for (const queryMethod of queryMethods) {
         elm,
         renderer
       } = vm;
-      if (process.env.NODE_ENV !== 'production') {
+      {
         warnIfInvokedDuringConstruction(vm, `${queryMethod}()`);
       }
       return renderer[queryMethod](elm, arg);
@@ -2368,7 +2324,7 @@ defineProperty(LightningElement, 'CustomElementConstructor', {
   },
   configurable: true
 });
-if (process.env.NODE_ENV !== 'production') {
+{
   patchLightningElementPrototypeWithRestrictions(LightningElement.prototype);
 }
 function createObservedFieldPropertyDescriptor(key) {
@@ -2391,7 +2347,7 @@ function createPublicPropertyDescriptor(key) {
     get() {
       const vm = getAssociatedVM(this);
       if (isBeingConstructed(vm)) {
-        if (process.env.NODE_ENV !== 'production') {
+        {
           logError(`Can’t read the value of property \`${toString$1(key)}\` from the constructor because the owner component hasn’t set the value yet. Instead, use the constructor to set a default value for the property.`, vm);
         }
         return;
@@ -2401,7 +2357,7 @@ function createPublicPropertyDescriptor(key) {
     },
     set(newValue) {
       const vm = getAssociatedVM(this);
-      if (process.env.NODE_ENV !== 'production') {
+      {
         const vmBeingRendered = getVMBeingRendered();
         assert.invariant(!isInvokingRender, `${vmBeingRendered}.render() method has side effects on the state of ${vm}.${toString$1(key)}`);
         assert.invariant(!isUpdatingTemplate, `Updating the template of ${vmBeingRendered} has side effects on the state of ${vm}.${toString$1(key)}`);
@@ -2421,14 +2377,14 @@ function createPublicAccessorDescriptor(key, descriptor) {
     configurable
   } = descriptor;
   if (!isFunction$1(get)) {
-    if (process.env.NODE_ENV !== 'production') {
+    {
       assert.invariant(isFunction$1(get), `Invalid compiler output for public accessor ${toString$1(key)} decorated with @api`);
     }
     throw new Error();
   }
   return {
     get() {
-      if (process.env.NODE_ENV !== 'production') {
+      {
         // Assert that the this value is an actual Component with an associated VM.
         getAssociatedVM(this);
       }
@@ -2436,14 +2392,14 @@ function createPublicAccessorDescriptor(key, descriptor) {
     },
     set(newValue) {
       const vm = getAssociatedVM(this);
-      if (process.env.NODE_ENV !== 'production') {
+      {
         const vmBeingRendered = getVMBeingRendered();
         assert.invariant(!isInvokingRender, `${vmBeingRendered}.render() method has side effects on the state of ${vm}.${toString$1(key)}`);
         assert.invariant(!isUpdatingTemplate, `Updating the template of ${vmBeingRendered} has side effects on the state of ${vm}.${toString$1(key)}`);
       }
       if (set) {
         set.call(this, newValue);
-      } else if (process.env.NODE_ENV !== 'production') {
+      } else {
         assert.fail(`Invalid attempt to set a new value for property ${toString$1(key)} of ${vm} that does not has a setter decorated with @api.`);
       }
     },
@@ -2460,7 +2416,7 @@ function internalTrackDecorator(key) {
     },
     set(newValue) {
       const vm = getAssociatedVM(this);
-      if (process.env.NODE_ENV !== 'production') {
+      {
         const vmBeingRendered = getVMBeingRendered();
         assert.invariant(!isInvokingRender, `${vmBeingRendered}.render() method has side effects on the state of ${vm}.${toString$1(key)}`);
         assert.invariant(!isUpdatingTemplate, `Updating the template of ${vmBeingRendered} has side effects on the state of ${vm}.${toString$1(key)}`);
@@ -2594,7 +2550,7 @@ function registerDecorators(Ctor, meta) {
       descriptor = getOwnPropertyDescriptor$1(proto, fieldName);
       if (propConfig.config > 0) {
         // accessor declaration
-        if (process.env.NODE_ENV !== 'production') {
+        {
           validateAccessorDecoratedWithApi(Ctor, fieldName, descriptor);
         }
         if (isUndefined$1(descriptor)) {
@@ -2603,7 +2559,7 @@ function registerDecorators(Ctor, meta) {
         descriptor = createPublicAccessorDescriptor(fieldName, descriptor);
       } else {
         // field declaration
-        if (process.env.NODE_ENV !== 'production') {
+        {
           validateFieldDecoratedWithApi(Ctor, fieldName, descriptor);
         }
         // [W-9927596] If a component has both a public property and a private setter/getter
@@ -2622,7 +2578,7 @@ function registerDecorators(Ctor, meta) {
   if (!isUndefined$1(publicMethods)) {
     forEach.call(publicMethods, methodName => {
       descriptor = getOwnPropertyDescriptor$1(proto, methodName);
-      if (process.env.NODE_ENV !== 'production') {
+      {
         validateMethodDecoratedWithApi(Ctor, methodName, descriptor);
       }
       if (isUndefined$1(descriptor)) {
@@ -2641,7 +2597,7 @@ function registerDecorators(Ctor, meta) {
       } = wire[fieldOrMethodName];
       descriptor = getOwnPropertyDescriptor$1(proto, fieldOrMethodName);
       if (method === 1) {
-        if (process.env.NODE_ENV !== 'production') {
+        {
           assert.isTrue(adapter, `@wire on method "${fieldOrMethodName}": adapter id must be truthy.`);
           validateMethodDecoratedWithWire(Ctor, fieldOrMethodName, descriptor);
         }
@@ -2651,7 +2607,7 @@ function registerDecorators(Ctor, meta) {
         wiredMethods[fieldOrMethodName] = descriptor;
         storeWiredMethodMeta(descriptor, adapter, configCallback, dynamic);
       } else {
-        if (process.env.NODE_ENV !== 'production') {
+        {
           assert.isTrue(adapter, `@wire on field "${fieldOrMethodName}": adapter id must be truthy.`);
           validateFieldDecoratedWithWire(Ctor, fieldOrMethodName, descriptor);
         }
@@ -2665,7 +2621,7 @@ function registerDecorators(Ctor, meta) {
   if (!isUndefined$1(track)) {
     for (const fieldName in track) {
       descriptor = getOwnPropertyDescriptor$1(proto, fieldName);
-      if (process.env.NODE_ENV !== 'production') {
+      {
         validateFieldDecoratedWithTrack(Ctor, fieldName, descriptor);
       }
       descriptor = internalTrackDecorator(fieldName);
@@ -2676,7 +2632,7 @@ function registerDecorators(Ctor, meta) {
     for (let i = 0, n = fields.length; i < n; i++) {
       const fieldName = fields[i];
       descriptor = getOwnPropertyDescriptor$1(proto, fieldName);
-      if (process.env.NODE_ENV !== 'production') {
+      {
         validateObservedField(Ctor, fieldName, descriptor);
       }
       // [W-9927596] Only mark a field as observed whenever it isn't a duplicated public nor
@@ -2723,7 +2679,7 @@ function getDecoratorsMeta(Ctor) {
  */
 let warned = false;
 // @ts-ignore
-if (process.env.NODE_ENV !== 'production' && typeof __karma__ !== 'undefined') {
+if ( typeof __karma__ !== 'undefined') {
   // @ts-ignore
   window.__lwcResetWarnedOnVersionMismatch = () => {
     warned = false;
@@ -2756,7 +2712,7 @@ function isTemplateRegistered(tpl) {
  * will prevent this function from being imported by userland code.
  */
 function registerTemplate(tpl) {
-  if (process.env.NODE_ENV !== 'production') {
+  {
     checkVersionMismatch(tpl, 'template');
   }
   signedTemplateSet.add(tpl);
@@ -2855,7 +2811,9 @@ function HTMLBridgeElementFactory(SuperClass, props, methods) {
    * fully qualifying web components.
    */
   if (isFunction$1(SuperClass)) {
-    HTMLBridgeElement = class extends SuperClass {};
+    HTMLBridgeElement = class extends SuperClass {
+      /*LWC compiler v2.32.1*/
+    };
   } else {
     HTMLBridgeElement = function () {
       // Bridge classes are not supposed to be instantiated directly in
@@ -2935,10 +2893,6 @@ const activeTemplates = new WeakMap();
 const activeComponents = new WeakMap();
 const activeStyles = new WeakMap();
 function getTemplateOrSwappedTemplate(tpl) {
-  if (process.env.NODE_ENV === 'production') {
-    // this method should never leak to prod
-    throw new ReferenceError();
-  }
   const visited = new Set();
   while (swappedTemplateMap.has(tpl) && !visited.has(tpl)) {
     visited.add(tpl);
@@ -2947,10 +2901,6 @@ function getTemplateOrSwappedTemplate(tpl) {
   return tpl;
 }
 function getComponentOrSwappedComponent(Ctor) {
-  if (process.env.NODE_ENV === 'production') {
-    // this method should never leak to prod
-    throw new ReferenceError();
-  }
   const visited = new Set();
   while (swappedComponentMap.has(Ctor) && !visited.has(Ctor)) {
     visited.add(Ctor);
@@ -2959,10 +2909,6 @@ function getComponentOrSwappedComponent(Ctor) {
   return Ctor;
 }
 function getStyleOrSwappedStyle(style) {
-  if (process.env.NODE_ENV === 'production') {
-    // this method should never leak to prod
-    throw new ReferenceError();
-  }
   const visited = new Set();
   while (swappedStyleMap.has(style) && !visited.has(style)) {
     visited.add(style);
@@ -2971,10 +2917,6 @@ function getStyleOrSwappedStyle(style) {
   return style;
 }
 function setActiveVM(vm) {
-  if (process.env.NODE_ENV === 'production') {
-    // this method should never leak to prod
-    throw new ReferenceError();
-  }
   // tracking active component
   const Ctor = vm.def.ctor;
   let componentVMs = activeComponents.get(Ctor);
@@ -3017,10 +2959,6 @@ function setActiveVM(vm) {
   }
 }
 function removeActiveVM(vm) {
-  if (process.env.NODE_ENV === 'production') {
-    // this method should never leak to prod
-    throw new ReferenceError();
-  }
   // tracking inactive component
   const Ctor = vm.def.ctor;
   let list = activeComponents.get(Ctor);
@@ -3065,7 +3003,7 @@ function getCtorProto(Ctor) {
   // covering the cases where the ref is circular in AMD
   if (isCircularModuleDependency(proto)) {
     const p = resolveCircularModuleDependency(proto);
-    if (process.env.NODE_ENV !== 'production') {
+    {
       if (isNull(p)) {
         throw new ReferenceError(`Circular module dependency for ${Ctor.name}, must resolve to a constructor that extends LightningElement.`);
       }
@@ -3083,7 +3021,7 @@ function createComponentDef(Ctor) {
     shadowSupportMode: ctorShadowSupportMode,
     renderMode: ctorRenderMode
   } = Ctor;
-  if (process.env.NODE_ENV !== 'production') {
+  {
     const ctorName = Ctor.name;
     // Removing the following assert until https://bugs.webkit.org/show_bug.cgi?id=190140 is fixed.
     // assert.isTrue(ctorName && isString(ctorName), `${toString(Ctor)} should have a "name" property with string value, but found ${ctorName}.`);
@@ -3154,7 +3092,7 @@ function createComponentDef(Ctor) {
     errorCallback,
     render
   };
-  if (process.env.NODE_ENV !== 'production') {
+  {
     freeze(Ctor.prototype);
   }
   return def;
@@ -3193,7 +3131,7 @@ function isComponentConstructor(ctor) {
   return false;
 }
 function getComponentInternalDef(Ctor) {
-  if (process.env.NODE_ENV !== 'production') {
+  {
     Ctor = getComponentOrSwappedComponent(Ctor);
   }
   let def = CtorToDefMap.get(Ctor);
@@ -3315,7 +3253,7 @@ function evaluateStylesheetsContent(stylesheets, stylesheetToken, vm) {
     if (isArray$1(stylesheet)) {
       ArrayPush$1.apply(content, evaluateStylesheetsContent(stylesheet, stylesheetToken, vm));
     } else {
-      if (process.env.NODE_ENV !== 'production') {
+      {
         // Check for compiler version mismatch in dev mode only
         checkVersionMismatch(stylesheet, 'stylesheet');
         // in dev-mode, we support hot swapping of stylesheet, which means that
@@ -3620,7 +3558,7 @@ function patchProps(oldVnode, vnode, renderer) {
       // Additional verification if properties are supported by the element
       // Validation relies on html properties and public properties being defined on the element,
       // SSR has its own custom validation.
-      if (process.env.NODE_ENV !== 'production') {
+      {
         if (!(key in elm)) {
           logWarn(`Unknown public property "${key}" of element <${elm.tagName.toLowerCase()}>. This is either a typo on the corresponding attribute "${htmlPropertyToAttribute(key)}", or the attribute does not exist in this browser or DOM implementation.`);
         }
@@ -3664,7 +3602,7 @@ function getMapFromClassName(className) {
     map[StringSlice.call(className, start, o)] = true;
   }
   classNameToClassMap[className] = map;
-  if (process.env.NODE_ENV !== 'production') {
+  {
     // just to make sure that this object never changes as part of the diffing algo
     freeze(map);
   }
@@ -3829,7 +3767,7 @@ function patch(n1, n2, parent, renderer) {
   if (n1 === n2) {
     return;
   }
-  if (process.env.NODE_ENV !== 'production') {
+  {
     if (!isSameVnode(n1, n2)) {
       throw new Error('Expected these VNodes to be the same: ' + JSON.stringify({
         sel: n1.sel,
@@ -4044,7 +3982,7 @@ function mountCustomElement(vnode, parent, anchor, renderer) {
   if (vm) {
     {
       if (!lwcRuntimeFlags.ENABLE_NATIVE_CUSTOM_ELEMENT_LIFECYCLE) {
-        if (process.env.NODE_ENV !== 'production') {
+        {
           // With synthetic lifecycle callbacks, it's possible for elements to be removed without the engine
           // noticing it (e.g. `appendChild` the same host element twice). This test ensures we don't regress.
           assert.isTrue(vm.state === 0 /* VMState.created */, `${vm} cannot be recycled.`);
@@ -4167,29 +4105,29 @@ function updateTextContent(vnode, renderer) {
   const {
     setText
   } = renderer;
-  if (process.env.NODE_ENV !== 'production') {
+  {
     unlockDomMutation();
   }
   setText(elm, text);
-  if (process.env.NODE_ENV !== 'production') {
+  {
     lockDomMutation();
   }
 }
 function insertNode(node, parent, anchor, renderer) {
-  if (process.env.NODE_ENV !== 'production') {
+  {
     unlockDomMutation();
   }
   renderer.insert(node, parent, anchor);
-  if (process.env.NODE_ENV !== 'production') {
+  {
     lockDomMutation();
   }
 }
 function removeNode(node, parent, renderer) {
-  if (process.env.NODE_ENV !== 'production') {
+  {
     unlockDomMutation();
   }
   renderer.remove(node, parent);
-  if (process.env.NODE_ENV !== 'production') {
+  {
     lockDomMutation();
   }
 }
@@ -4243,7 +4181,7 @@ function applyDomManual(elm, vnode) {
 }
 function applyElementRestrictions(elm, vnode) {
   var _a, _b;
-  if (process.env.NODE_ENV !== 'production') {
+  {
     const isSynthetic = vnode.owner.shadowMode === 1 /* ShadowMode.Synthetic */;
     const isPortal = vnode.type === 2 /* VNodeType.Element */ && ((_b = (_a = vnode.data.context) === null || _a === void 0 ? void 0 : _a.lwc) === null || _b === void 0 ? void 0 : _b.dom) === "manual" /* LwcDomMode.Manual */;
     const isLight = vnode.owner.renderMode === 0 /* RenderMode.Light */;
@@ -4271,7 +4209,7 @@ function allocateChildren(vnode, vm) {
     renderMode,
     shadowMode
   } = vm;
-  if (process.env.NODE_ENV !== 'production') {
+  {
     // If any of the children being allocated is a scoped slot fragment, make sure the receiving
     // component is a light DOM component. This is mainly to validate light dom parent running
     // in native shadow mode.
@@ -4307,7 +4245,7 @@ function createViewModelHook(elm, vnode, renderer) {
     owner,
     tagName: sel
   });
-  if (process.env.NODE_ENV !== 'production') {
+  {
     assert.isTrue(isArray$1(vnode.children), `Invalid vnode for a custom element, it must have children defined.`);
   }
   return vm;
@@ -4582,7 +4520,7 @@ function fr(key, children, stable) {
 // [h]tml node
 function h(sel, data, children = EmptyArray) {
   const vmBeingRendered = getVMBeingRendered();
-  if (process.env.NODE_ENV !== 'production') {
+  {
     assert.isTrue(isString(sel), `h() 1st argument sel must be a string.`);
     assert.isTrue(isObject(data), `h() 2nd argument data must be an object.`);
     assert.isTrue(isArray$1(children), `h() 3rd argument children must be an array.`);
@@ -4623,7 +4561,7 @@ function ti(value) {
   // If value is an invalid tabIndex value (null, undefined, string, etc), we let that value pass through
   // If value is less than -1, we don't care
   const shouldNormalize = value > 0 && !(isTrue(value) || isFalse(value));
-  if (process.env.NODE_ENV !== 'production') {
+  {
     const vmBeingRendered = getVMBeingRendered();
     if (shouldNormalize) {
       logError(`Invalid tabindex value \`${toString$1(value)}\` in template for ${vmBeingRendered}. This attribute must be set to 0 or -1.`, vmBeingRendered);
@@ -4633,7 +4571,7 @@ function ti(value) {
 }
 // [s]lot element node
 function s(slotName, data, children, slotset) {
-  if (process.env.NODE_ENV !== 'production') {
+  {
     assert.isTrue(isString(slotName), `s() 1st argument slotName must be a string.`);
     assert.isTrue(isObject(data), `s() 2nd argument data must be an object.`);
     assert.isTrue(isArray$1(children), `h() 3rd argument children must be an array.`);
@@ -4649,7 +4587,7 @@ function s(slotName, data, children, slotset) {
         const isScopedSlotElement = !isUndefined$1(data.slotData);
         // Check if slot types of parent and child are matching
         if (assignedNodeIsScopedSlot !== isScopedSlotElement) {
-          if (process.env.NODE_ENV !== 'production') {
+          {
             logError(`Mismatched slot types for ${slotName === '' ? '(default)' : slotName} slot. Both parent and child component must use standard type or scoped type for a given slot.`, slotset.owner);
           }
           // Ignore slot content from parent
@@ -4694,7 +4632,7 @@ function s(slotName, data, children, slotset) {
 // [c]ustom element node
 function c(sel, Ctor, data, children = EmptyArray) {
   const vmBeingRendered = getVMBeingRendered();
-  if (process.env.NODE_ENV !== 'production') {
+  {
     assert.isTrue(isString(sel), `c() 1st argument sel must be a string.`);
     assert.isTrue(isFunction$1(Ctor), `c() 2nd argument Ctor must be a function.`);
     assert.isTrue(isObject(data), `c() 3nd argument data must be an object.`);
@@ -4744,16 +4682,16 @@ function i(iterable, factory) {
   sc(list);
   const vmBeingRendered = getVMBeingRendered();
   if (isUndefined$1(iterable) || iterable === null) {
-    if (process.env.NODE_ENV !== 'production') {
+    {
       logError(`Invalid template iteration for value "${toString$1(iterable)}" in ${vmBeingRendered}. It must be an Array or an iterable Object.`, vmBeingRendered);
     }
     return list;
   }
-  if (process.env.NODE_ENV !== 'production') {
+  {
     assert.isFalse(isUndefined$1(iterable[SymbolIterator]), `Invalid template iteration for value \`${toString$1(iterable)}\` in ${vmBeingRendered}. It must be an array-like object and not \`null\` nor \`undefined\`.`);
   }
   const iterator = iterable[SymbolIterator]();
-  if (process.env.NODE_ENV !== 'production') {
+  {
     assert.isTrue(iterator && isFunction$1(iterator.next), `Invalid iterator function for "${toString$1(iterable)}" in ${vmBeingRendered}.`);
   }
   let next = iterator.next();
@@ -4764,7 +4702,7 @@ function i(iterable, factory) {
   } = next;
   let keyMap;
   let iterationError;
-  if (process.env.NODE_ENV !== 'production') {
+  {
     keyMap = create(null);
   }
   while (last === false) {
@@ -4778,7 +4716,7 @@ function i(iterable, factory) {
     } else {
       ArrayPush$1.call(list, vnode);
     }
-    if (process.env.NODE_ENV !== 'production') {
+    {
       const vnodes = isArray$1(vnode) ? vnode : [vnode];
       forEach.call(vnodes, childVnode => {
         if (!isNull(childVnode) && isObject(childVnode) && !isUndefined$1(childVnode.sel)) {
@@ -4800,7 +4738,7 @@ function i(iterable, factory) {
     j += 1;
     value = next.value;
   }
-  if (process.env.NODE_ENV !== 'production') {
+  {
     if (!isUndefined$1(iterationError)) {
       logError(iterationError, vmBeingRendered);
     }
@@ -4811,7 +4749,7 @@ function i(iterable, factory) {
  * [f]lattening
  */
 function f(items) {
-  if (process.env.NODE_ENV !== 'production') {
+  {
     assert.isTrue(isArray$1(items), 'flattening api can only work with arrays.');
   }
   const len = items.length;
@@ -4874,7 +4812,7 @@ function k(compilerKey, obj) {
     case 'string':
       return compilerKey + ':' + obj;
     case 'object':
-      if (process.env.NODE_ENV !== 'production') {
+      {
         assert.fail(`Invalid key value "${obj}" in ${getVMBeingRendered()}. Key must be a string or number.`);
       }
   }
@@ -4883,7 +4821,7 @@ function k(compilerKey, obj) {
 function gid(id) {
   const vmBeingRendered = getVMBeingRendered();
   if (isUndefined$1(id) || id === '') {
-    if (process.env.NODE_ENV !== 'production') {
+    {
       logError(`Invalid id value "${id}". The id attribute must contain a non-empty string.`, vmBeingRendered);
     }
     return id;
@@ -4905,7 +4843,7 @@ function gid(id) {
 function fid(url) {
   const vmBeingRendered = getVMBeingRendered();
   if (isUndefined$1(url) || url === '') {
-    if (process.env.NODE_ENV !== 'production') {
+    {
       if (isUndefined$1(url)) {
         logError(`Undefined url value for "href" or "xlink:href" attribute. Expected a non-empty string.`, vmBeingRendered);
       }
@@ -4930,7 +4868,7 @@ function fid(url) {
  * create a dynamic component via `<x-foo lwc:dynamic={Ctor}>`
  */
 function dc(sel, Ctor, data, children = EmptyArray) {
-  if (process.env.NODE_ENV !== 'production') {
+  {
     assert.isTrue(isString(sel), `dc() 1st argument sel must be a string.`);
     assert.isTrue(isObject(data), `dc() 3nd argument data must be an object.`);
     assert.isTrue(arguments.length === 3 || isArray$1(children), `dc() 4nd argument data must be an array.`);
@@ -4958,7 +4896,7 @@ function dc(sel, Ctor, data, children = EmptyArray) {
  *
  */
 function sc(vnodes) {
-  if (process.env.NODE_ENV !== 'production') {
+  {
     assert.isTrue(isArray$1(vnodes), 'sc() api can only work with arrays.');
   }
   // We have to mark the vnodes collection as dynamic so we can later on
@@ -5033,30 +4971,28 @@ function getMarkName(opId, vm) {
   // the right measures for components that are recursive.
   return `${getMeasureName(opId, vm)} - ${vm.idx}`;
 }
-/** Indicates if operations should be logged via the User Timing API. */
-const isMeasureEnabled = process.env.NODE_ENV !== 'production';
 function logOperationStart(opId, vm) {
-  if (isMeasureEnabled) {
+  {
     const markName = getMarkName(opId, vm);
     start(markName);
   }
 }
 function logOperationEnd(opId, vm) {
-  if (isMeasureEnabled) {
+  {
     const markName = getMarkName(opId, vm);
     const measureName = getMeasureName(opId, vm);
     end(measureName, markName);
   }
 }
 function logGlobalOperationStart(opId, vm) {
-  if (isMeasureEnabled) {
+  {
     const opName = getOperationName(opId);
     const markName = isUndefined$1(vm) ? opName : getMarkName(opId, vm);
     start(markName);
   }
 }
 function logGlobalOperationEnd(opId, vm) {
-  if (isMeasureEnabled) {
+  {
     const opName = getOperationName(opId);
     const markName = isUndefined$1(vm) ? opName : getMarkName(opId, vm);
     end(opName, markName);
@@ -5078,10 +5014,6 @@ function setVMBeingRendered(vm) {
   vmBeingRendered = vm;
 }
 function validateSlots(vm, html) {
-  if (process.env.NODE_ENV === 'production') {
-    // this method should never leak to prod
-    throw new ReferenceError();
-  }
   const {
     cmpSlots
   } = vm;
@@ -5107,7 +5039,7 @@ function validateLightDomTemplate(template, vm) {
   }
 }
 function evaluateTemplate(vm, html) {
-  if (process.env.NODE_ENV !== 'production') {
+  {
     assert.isTrue(isFunction$1(html), `evaluateTemplate() second argument must be an imported template instead of ${toString$1(html)}`);
     // in dev-mode, we support hot swapping of templates, which means that
     // the component instance might be attempting to use an old version of
@@ -5133,7 +5065,7 @@ function evaluateTemplate(vm, html) {
     tro.observe(() => {
       // Reset the cache memoizer for template when needed.
       if (html !== cmpTemplate) {
-        if (process.env.NODE_ENV !== 'production') {
+        if ("development" !== 'production') {
           validateLightDomTemplate(html, vm);
         }
         // Perf opt: do not reset the shadow root during the first rendering (there is
@@ -5160,7 +5092,7 @@ function evaluateTemplate(vm, html) {
         const stylesheetsContent = getStylesheetsContent(vm, html);
         context.styleVNodes = stylesheetsContent.length === 0 ? null : createStylesheet(vm, stylesheetsContent);
       }
-      if (process.env.NODE_ENV !== 'production') {
+      if ("development" !== 'production') {
         // validating slots in every rendering since the allocated content might change over time
         validateSlots(vm, html);
         // add the VM to the list of host VMs that can be re-rendered if html is swapped
@@ -5189,7 +5121,7 @@ function evaluateTemplate(vm, html) {
     vmBeingRendered = vmOfTemplateBeingUpdatedInception;
     logOperationEnd(1 /* OperationId.Render */, vm);
   });
-  if (process.env.NODE_ENV !== 'production') {
+  {
     assert.invariant(isArray$1(vnodes), `Compiler should produce html functions that always return an array.`);
   }
   return vnodes;
@@ -5300,7 +5232,7 @@ function invokeEventListener(vm, fn, thisValue, event) {
   } = vm;
   runWithBoundaryProtection(vm, owner, noop, () => {
     // job
-    if (process.env.NODE_ENV !== 'production') {
+    if ("development" !== 'production') {
       assert.isTrue(isFunction$1(fn), `Invalid event handler for event '${event.type}' on ${vm}.`);
     }
     callHook(thisValue, fn, [event]);
@@ -5324,7 +5256,7 @@ Ctor, {
   tmpl
 }) {
   if (isFunction$1(Ctor)) {
-    if (process.env.NODE_ENV !== 'production') {
+    {
       checkVersionMismatch(Ctor, 'component');
     }
     signedTemplateMap.set(Ctor, tmpl);
@@ -5348,7 +5280,7 @@ function getTemplateReactiveObserver(vm) {
   });
 }
 function renderComponent(vm) {
-  if (process.env.NODE_ENV !== 'production') {
+  {
     assert.invariant(vm.isDirty, `${vm} is not dirty.`);
   }
   vm.tro.reset();
@@ -5358,7 +5290,7 @@ function renderComponent(vm) {
   return vnodes;
 }
 function markComponentAsDirty(vm) {
-  if (process.env.NODE_ENV !== 'production') {
+  {
     const vmBeingRendered = getVMBeingRendered();
     assert.isFalse(vm.isDirty, `markComponentAsDirty() for ${vm} should not be called when the component is already dirty.`);
     assert.isFalse(isInvokingRender, `markComponentAsDirty() for ${vm} cannot be called during rendering of ${vmBeingRendered}.`);
@@ -5390,7 +5322,7 @@ function getWrappedComponentsListener(vm, listener) {
  */
 const Services = create(null);
 function invokeServiceHook(vm, cbs) {
-  if (process.env.NODE_ENV !== 'production') {
+  {
     assert.isTrue(isArray$1(cbs) && cbs.length > 0, `Optimize invokeServiceHook() to be invoked only when needed`);
   }
   const {
@@ -5460,14 +5392,14 @@ function resetComponentStateWhenRemoved(vm) {
     runChildNodesDisconnectedCallback(vm);
     runLightChildNodesDisconnectedCallback(vm);
   }
-  if (process.env.NODE_ENV !== 'production') {
+  {
     removeActiveVM(vm);
   }
 }
 // this method is triggered by the diffing algo only when a vnode from the
 // old vnode.children is removed from the DOM.
 function removeVM(vm) {
-  if (process.env.NODE_ENV !== 'production') {
+  {
     assert.isTrue(vm.state === 1 /* VMState.connected */ || vm.state === 2 /* VMState.disconnected */, `${vm} must have been connected.`);
   }
   resetComponentStateWhenRemoved(vm);
@@ -5532,12 +5464,12 @@ function createVM(elm, ctor, renderer, options) {
     getHook,
     renderer
   };
-  if (process.env.NODE_ENV !== 'production') {
+  {
     vm.debugInfo = create(null);
   }
   vm.shadowMode = computeShadowMode(vm, renderer);
   vm.tro = getTemplateReactiveObserver(vm);
-  if (process.env.NODE_ENV !== 'production') {
+  {
     vm.toString = () => {
       return `[object:vm ${def.name} (${vm.idx})]`;
     };
@@ -5609,14 +5541,14 @@ function associateVM(obj, vm) {
 }
 function getAssociatedVM(obj) {
   const vm = ViewModelReflection.get(obj);
-  if (process.env.NODE_ENV !== 'production') {
+  {
     assertIsVM(vm);
   }
   return vm;
 }
 function getAssociatedVMIfPresent(obj) {
   const maybeVm = ViewModelReflection.get(obj);
-  if (process.env.NODE_ENV !== 'production') {
+  {
     if (!isUndefined$1(maybeVm)) {
       assertIsVM(maybeVm);
     }
@@ -5682,7 +5614,7 @@ function runRenderedCallback(vm) {
 let rehydrateQueue = [];
 function flushRehydrationQueue() {
   logGlobalOperationStart(8 /* OperationId.GlobalRehydrate */);
-  if (process.env.NODE_ENV !== 'production') {
+  {
     assert.invariant(rehydrateQueue.length, `If rehydrateQueue was scheduled, it is because there must be at least one VM on this pending queue instead of ${rehydrateQueue}.`);
   }
   const vms = rehydrateQueue.sort((a, b) => a.idx - b.idx);
@@ -5742,7 +5674,7 @@ function hasWireAdapters(vm) {
   return getOwnPropertyNames$1(vm.def.wire).length > 0;
 }
 function runDisconnectedCallback(vm) {
-  if (process.env.NODE_ENV !== 'production') {
+  {
     assert.isTrue(vm.state !== 2 /* VMState.disconnected */, `${vm} must be inserted.`);
   }
   if (isFalse(vm.isDirty)) {
@@ -5926,6 +5858,7 @@ class WireContextRegistrationEvent extends CustomEvent {
       }
     });
   }
+  /*LWC compiler v2.32.1*/
 }
 function createFieldDataCallback(vm, name) {
   return value => {
@@ -6019,7 +5952,7 @@ function createConnector(vm, name, wireDef) {
     dynamic
   } = wireDef;
   let debugInfo;
-  if (process.env.NODE_ENV !== 'production') {
+  {
     const wiredPropOrMethod = isUndefined$1(method) ? name : method.name;
     debugInfo = create(null);
     debugInfo.wasDataProvisionedForConfig = false;
@@ -6027,7 +5960,7 @@ function createConnector(vm, name, wireDef) {
   }
   const fieldOrMethodCallback = isUndefined$1(method) ? createFieldDataCallback(vm, name) : createMethodDataCallback(vm, method);
   const dataCallback = value => {
-    if (process.env.NODE_ENV !== 'production') {
+    {
       debugInfo.data = value;
       // Note: most of the time, the data provided is for the current config, but there may be
       // some conditions in which it does not, ex:
@@ -6054,7 +5987,7 @@ function createConnector(vm, name, wireDef) {
     // this callback will be invoked with the new computed config
     runWithBoundaryProtection(vm, vm, noop, () => {
       // job
-      if (process.env.NODE_ENV !== 'production') {
+      if ("development" !== 'production') {
         debugInfo.config = config;
         debugInfo.context = context;
         debugInfo.wasDataProvisionedForConfig = false;
@@ -6128,7 +6061,7 @@ function installWireAdapters(vm) {
       wire
     }
   } = vm;
-  if (process.env.NODE_ENV !== 'production') {
+  {
     vm.debugInfo[WIRE_DEBUG_ENTRY] = create(null);
   }
   const wiredConnecting = context.wiredConnecting = [];
@@ -6136,7 +6069,7 @@ function installWireAdapters(vm) {
   for (const fieldNameOrMethod in wire) {
     const descriptor = wire[fieldNameOrMethod];
     const wireDef = WireMetaMap.get(descriptor);
-    if (process.env.NODE_ENV !== 'production') {
+    {
       assert.invariant(wireDef, `Internal Error: invalid wire definition found.`);
     }
     if (!isUndefined$1(wireDef)) {
@@ -6246,7 +6179,7 @@ function hydrateText(node, vnode, renderer) {
   if (!hasCorrectNodeType(vnode, node, 3 /* EnvNodeTypes.TEXT */, renderer)) {
     return handleMismatch(node, vnode, renderer);
   }
-  if (process.env.NODE_ENV !== 'production') {
+  {
     const {
       getProperty
     } = renderer;
@@ -6267,7 +6200,7 @@ function hydrateComment(node, vnode, renderer) {
   if (!hasCorrectNodeType(vnode, node, 8 /* EnvNodeTypes.COMMENT */, renderer)) {
     return handleMismatch(node, vnode, renderer);
   }
-  if (process.env.NODE_ENV !== 'production') {
+  {
     const {
       getProperty
     } = renderer;
@@ -6328,7 +6261,7 @@ function hydrateElement(elm, vnode, renderer) {
           props: cloneAndOmitKey(props, 'innerHTML')
         });
       } else {
-        if (process.env.NODE_ENV !== 'production') {
+        {
           logWarn(`Mismatch hydrating element <${getProperty(elm, 'tagName').toLowerCase()}>: innerHTML values do not match for element, will recover from the difference`, owner);
         }
       }
@@ -6364,7 +6297,7 @@ function hydrateCustomElement(elm, vnode, renderer) {
   allocateChildren(vnode, vm);
   patchElementPropsAndAttrs(vnode, renderer);
   // Insert hook section:
-  if (process.env.NODE_ENV !== 'production') {
+  {
     assert.isTrue(vm.state === 0 /* VMState.created */, `${vm} cannot be recycled.`);
   }
   runConnectedCallback(vm);
@@ -6394,7 +6327,7 @@ function hydrateChildren(node, children, parentNode, owner) {
         anchor = childVnode.elm;
       } else {
         hasMismatch = true;
-        if (process.env.NODE_ENV !== 'production') {
+        {
           if (!hasWarned) {
             hasWarned = true;
             logError(`Hydration mismatch: incorrect number of rendered nodes. Client produced more nodes than the server.`, owner);
@@ -6407,7 +6340,7 @@ function hydrateChildren(node, children, parentNode, owner) {
   }
   if (nextNode) {
     hasMismatch = true;
-    if (process.env.NODE_ENV !== 'production') {
+    {
       if (!hasWarned) {
         logError(`Hydration mismatch: incorrect number of rendered nodes. Server rendered more nodes than the client.`, owner);
       }
@@ -6445,7 +6378,7 @@ function hasCorrectNodeType(vnode, node, nodeType, renderer) {
     getProperty
   } = renderer;
   if (getProperty(node, 'nodeType') !== nodeType) {
-    if (process.env.NODE_ENV !== 'production') {
+    {
       logError('Hydration mismatch: incorrect node type received', vnode.owner);
     }
     return false;
@@ -6457,7 +6390,7 @@ function isMatchingElement(vnode, elm, renderer) {
     getProperty
   } = renderer;
   if (vnode.sel.toLowerCase() !== getProperty(elm, 'tagName').toLowerCase()) {
-    if (process.env.NODE_ENV !== 'production') {
+    {
       logError(`Hydration mismatch: expecting element with tag "${vnode.sel.toLowerCase()}" but found "${getProperty(elm, 'tagName').toLowerCase()}".`, vnode.owner);
     }
     return false;
@@ -6485,7 +6418,7 @@ function validateAttrs(vnode, elm, renderer) {
     } = renderer;
     const elmAttrValue = getAttribute(elm, attrName);
     if (String(attrValue) !== elmAttrValue) {
-      if (process.env.NODE_ENV !== 'production') {
+      {
         const {
           getProperty
         } = renderer;
@@ -6566,7 +6499,7 @@ function validateClassAttr(vnode, elm, renderer) {
     readableVnodeClassname = '';
   }
   if (!nodesAreCompatible) {
-    if (process.env.NODE_ENV !== 'production') {
+    {
       logError(`Mismatch hydrating element <${getProperty(elm, 'tagName').toLowerCase()}>: attribute "class" has different values, expected "${readableVnodeClassname}" but found "${elmClassName}"`, vnode.owner);
     }
   }
@@ -6610,7 +6543,7 @@ function validateStyleAttr(vnode, elm, renderer) {
     vnodeStyle = ArrayJoin.call(expectedStyle, ';');
   }
   if (!nodesAreCompatible) {
-    if (process.env.NODE_ENV !== 'production') {
+    {
       const {
         getProperty
       } = renderer;
@@ -6641,7 +6574,7 @@ function areCompatibleNodes(client, ssr, vnode, renderer) {
   }
   let isCompatibleElements = true;
   if (getProperty(client, 'tagName') !== getProperty(ssr, 'tagName')) {
-    if (process.env.NODE_ENV !== 'production') {
+    {
       logError(`Hydration mismatch: expecting element with tag "${getProperty(client, 'tagName').toLowerCase()}" but found "${getProperty(ssr, 'tagName').toLowerCase()}".`, vnode.owner);
     }
     return false;
@@ -6654,6 +6587,177 @@ function areCompatibleNodes(client, ssr, vnode, renderer) {
     }
   });
   return isCompatibleElements;
+}
+
+/*
+ * Copyright (c) 2018, salesforce.com, inc.
+ * All rights reserved.
+ * SPDX-License-Identifier: MIT
+ * For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/MIT
+ */
+// See @lwc/engine-core/src/framework/template.ts
+const TEMPLATE_PROPS = ['slots', 'stylesheetToken', 'stylesheets', 'renderMode'];
+// Via https://www.npmjs.com/package/object-observer
+const ARRAY_MUTATION_METHODS = ['pop', 'push', 'shift', 'unshift', 'reverse', 'sort', 'fill', 'splice', 'copyWithin'];
+// Expandos that may be placed on a stylesheet factory function, and which are meaningful to LWC at runtime
+const STYLESHEET_FUNCTION_EXPANDOS = [
+// SEE `KEY__SCOPED_CSS` in @lwc/style-compiler
+'$scoped$'];
+function getOriginalArrayMethod(prop) {
+  switch (prop) {
+    case 'pop':
+      return ArrayPop;
+    case 'push':
+      return ArrayPush$1;
+    case 'shift':
+      return ArrayShift;
+    case 'unshift':
+      return ArrayUnshift;
+    case 'reverse':
+      return ArrayReverse;
+    case 'sort':
+      return ArraySort;
+    case 'fill':
+      return ArrayFill;
+    case 'splice':
+      return ArraySplice;
+    case 'copyWithin':
+      return ArrayCopyWithin;
+  }
+}
+let mutationWarningsSilenced = false;
+// Warn if the user tries to mutate a stylesheets array, e.g.:
+// `tmpl.stylesheets.push(someStylesheetFunction)`
+function warnOnArrayMutation(stylesheets) {
+  // We can't handle users calling Array.prototype.slice.call(tmpl.stylesheets), but
+  // we can at least warn when they use the most common mutation methods.
+  for (const prop of ARRAY_MUTATION_METHODS) {
+    const originalArrayMethod = getOriginalArrayMethod(prop);
+    stylesheets[prop] = function arrayMutationWarningWrapper() {
+      logError(`Mutating the "stylesheets" array on a template function ` + `is deprecated and may be removed in a future version of LWC.`);
+      // @ts-ignore
+      return originalArrayMethod.apply(this, arguments);
+    };
+  }
+}
+// Warn if the user tries to mutate a stylesheet factory function, e.g.:
+// `stylesheet.$scoped$ = true`
+function warnOnStylesheetFunctionMutation(stylesheet) {
+  // We could warn on other properties, but in practice only certain expandos are meaningful to LWC at runtime
+  for (const prop of STYLESHEET_FUNCTION_EXPANDOS) {
+    let value = stylesheet[prop];
+    defineProperty(stylesheet, prop, {
+      enumerable: true,
+      configurable: true,
+      get() {
+        return value;
+      },
+      set(newValue) {
+        logError(`Dynamically setting the "${prop}" property on a stylesheet function ` + `is deprecated and may be removed in a future version of LWC.`);
+        value = newValue;
+      }
+    });
+  }
+}
+// Warn on either array or stylesheet (function) mutation, in a deeply-nested array
+function warnOnStylesheetsMutation(stylesheets) {
+  traverseStylesheets(stylesheets, subStylesheets => {
+    if (isArray$1(subStylesheets)) {
+      warnOnArrayMutation(subStylesheets);
+    } else {
+      warnOnStylesheetFunctionMutation(subStylesheets);
+    }
+  });
+}
+// Deeply freeze the entire array (of arrays) of stylesheet factory functions
+function deepFreeze(stylesheets) {
+  traverseStylesheets(stylesheets, subStylesheets => {
+    freeze(subStylesheets);
+  });
+}
+// Deep-traverse an array (of arrays) of stylesheet factory functions, and call the callback for every array/function
+function traverseStylesheets(stylesheets, callback) {
+  callback(stylesheets);
+  for (let i = 0; i < stylesheets.length; i++) {
+    const stylesheet = stylesheets[i];
+    if (isArray$1(stylesheet)) {
+      traverseStylesheets(stylesheet, callback);
+    } else {
+      callback(stylesheet);
+    }
+  }
+}
+function freezeTemplate(tmpl) {
+  if (lwcRuntimeFlags.ENABLE_FROZEN_TEMPLATE) {
+    // Deep freeze the template
+    freeze(tmpl);
+    if (!isUndefined$1(tmpl.stylesheets)) {
+      deepFreeze(tmpl.stylesheets);
+    }
+  } else {
+    // TODO [#2782]: remove this flag and delete the legacy behavior
+    // When ENABLE_FROZEN_TEMPLATE is false, then we shim stylesheetTokens on top of stylesheetToken for anyone who
+    // is accessing the old internal API (backwards compat). Details: https://salesforce.quip.com/v1rmAFu2cKAr
+    defineProperty(tmpl, 'stylesheetTokens', {
+      enumerable: true,
+      configurable: true,
+      get() {
+        const {
+          stylesheetToken
+        } = this;
+        if (isUndefined$1(stylesheetToken)) {
+          return stylesheetToken;
+        }
+        // Shim for the old `stylesheetTokens` property
+        // See https://github.com/salesforce/lwc/pull/2332/files#diff-7901555acef29969adaa6583185b3e9bce475cdc6f23e799a54e0018cb18abaa
+        return {
+          hostAttribute: `${stylesheetToken}-host`,
+          shadowAttribute: stylesheetToken
+        };
+      },
+      set(value) {
+        // If the value is null or some other exotic object, you would be broken anyway in the past
+        // because the engine would try to access hostAttribute/shadowAttribute, which would throw an error.
+        // However it may be undefined in newer versions of LWC, so we need to guard against that case.
+        this.stylesheetToken = isUndefined$1(value) ? undefined : value.shadowAttribute;
+      }
+    });
+    // When ENABLE_FROZEN_TEMPLATE is false, warn in dev mode whenever someone is mutating the template
+    {
+      if (!isUndefined$1(tmpl.stylesheets)) {
+        warnOnStylesheetsMutation(tmpl.stylesheets);
+      }
+      for (const prop of TEMPLATE_PROPS) {
+        let value = tmpl[prop];
+        defineProperty(tmpl, prop, {
+          enumerable: true,
+          configurable: true,
+          get() {
+            return value;
+          },
+          set(newValue) {
+            if (!mutationWarningsSilenced) {
+              logError(`Dynamically setting the "${prop}" property on a template function ` + `is deprecated and may be removed in a future version of LWC.`);
+            }
+            value = newValue;
+          }
+        });
+      }
+      const originalDescriptor = getOwnPropertyDescriptor$1(tmpl, 'stylesheetTokens');
+      defineProperty(tmpl, 'stylesheetTokens', {
+        enumerable: true,
+        configurable: true,
+        get: originalDescriptor.get,
+        set(value) {
+          logError(`Dynamically setting the "stylesheetTokens" property on a template function ` + `is deprecated and may be removed in a future version of LWC.`);
+          // Avoid logging twice (for both stylesheetToken and stylesheetTokens)
+          mutationWarningsSilenced = true;
+          originalDescriptor.set.call(this, value);
+          mutationWarningsSilenced = false;
+        }
+      });
+    }
+  }
 }
 /* version: 2.32.1 */
 
@@ -6730,7 +6834,7 @@ function init() {
   ArrayPush$1.call(devtoolsFormatters, LightningElementFormatter);
   _globalThis.devtoolsFormatters = devtoolsFormatters;
 }
-if (process.env.NODE_ENV !== 'production') {
+{
   init();
 }
 
@@ -6758,7 +6862,7 @@ const stylesheetCache = new Map();
 //
 // Test utilities
 //
-if (process.env.NODE_ENV === 'development') {
+{
   // @ts-ignore
   window.__lwcResetGlobalStylesheets = () => {
     stylesheetCache.clear();
@@ -6898,7 +7002,9 @@ function isCustomElementRegistryAvailable() {
     // In case we use compat mode with a modern browser, the compat mode transformation
     // invokes the DOM api with an .apply() or .call() to initialize any DOM api sub-classing,
     // which are not equipped to be initialized that way.
-    class clazz extends HTMLElementAlias {}
+    class clazz extends HTMLElementAlias {
+      /*LWC compiler v2.32.1*/
+    }
     customElements.define('lwc-test-' + Math.floor(Math.random() * 1000000), clazz);
     new clazz();
     return true;
@@ -6955,6 +7061,7 @@ const createUpgradableConstructor = (connectedCallback, disconnectedCallback) =>
         // Do we want to support this? Throw an error? Currently for backwards compat it's a no-op.
       }
     }
+    /*LWC compiler v2.32.1*/
   }
   // Do not unnecessarily add a connectedCallback/disconnectedCallback, as it introduces perf overhead
   // See: https://github.com/salesforce/lwc/pull/3162#issuecomment-1311851174
@@ -7160,6 +7267,7 @@ function createScopedRegistry() {
           (_a = definition.attributeChangedCallback) === null || _a === void 0 ? void 0 : _a.apply(this, [name, oldValue, newValue]);
         }
       }
+      /*LWC compiler v2.32.1*/
     }
     PivotCtor.observedAttributes = [...registeredDefinition.observedAttributes];
     // TODO [#3000]: support case where registeredDefinition is not form-associated, but later definition is.
@@ -7547,6 +7655,7 @@ const createUserConstructor = (HTMLElementToExtend, upgradeCallback, connectedCa
         disconnectedCallback(this);
       }
     }
+    /*LWC compiler v2.32.1*/
   };
 };
 function createCustomElementScoped(tagName, upgradeCallback, connectedCallback, disconnectedCallback) {
@@ -7987,6 +8096,7 @@ function buildCustomElementConstructor(Ctor) {
     attributeChangedCallback(name, oldValue, newValue) {
       attributeChangedCallback.call(this, name, oldValue, newValue);
     }
+    /*LWC compiler v2.32.1*/
   }, _a.observedAttributes = observedAttributes, _a;
 }
 
@@ -8002,7 +8112,7 @@ const _Node$1 = Node;
 const ConnectingSlot = new WeakMap();
 const DisconnectingSlot = new WeakMap();
 function callNodeSlot(node, slot) {
-  if (process.env.NODE_ENV !== 'production') {
+  {
     assert.isTrue(node, `callNodeSlot() should not be called for a non-object`);
   }
   const fn = slot.get(node);
@@ -8079,16 +8189,20 @@ freeze(LightningElement);
 seal(LightningElement.prototype);
 /* version: 2.32.1 */
 
-function stylesheet(hostSelector, shadowSelector, nativeShadow) {
-  return ["h1", shadowSelector, " {color: red;background-color: aliceblue;border: 1px solid green;}"].join('');
+function stylesheet(token, useActualHostSelector, useNativeDirPseudoclass) {
+  var shadowSelector = token ? ("[" + token + "]") : "";
+  return "h1" + shadowSelector + " {color: rgb(81, 40, 230);background-color: aliceblue;border: 1px solid green;padding: 5px;}";
+  /*LWC compiler v2.32.1*/
 }
 var _implicitStylesheets = [stylesheet];
 
+const stc0 = {
+  key: 0
+};
 function tmpl($api, $cmp, $slotset, $ctx) {
-  const {d: api_dynamic, t: api_text, h: api_element} = $api;
-  return [api_element("h1", {
-    key: 0
-  }, [api_dynamic($cmp.label), api_text(" !!!")])];
+  const {d: api_dynamic_text, t: api_text, h: api_element} = $api;
+  return [api_element("h1", stc0, [api_text(api_dynamic_text($cmp.label) + " !!!")])];
+  /*LWC compiler v2.32.1*/
 }
 var _tmpl = registerTemplate(tmpl);
 tmpl.stylesheets = [];
@@ -8097,16 +8211,17 @@ tmpl.stylesheets = [];
 if (_implicitStylesheets) {
   tmpl.stylesheets.push.apply(tmpl.stylesheets, _implicitStylesheets);
 }
-tmpl.stylesheetTokens = {
-  hostAttribute: "c-header_header-host",
-  shadowAttribute: "c-header_header"
-};
+if (_implicitStylesheets || undefined) {
+  tmpl.stylesheetToken = "c-header_header";
+}
+freezeTemplate(tmpl);
 
 class Header extends LightningElement {
   constructor(...args) {
     super(...args);
     this.label = '';
   }
+  /*LWC compiler v2.32.1*/
 }
 registerDecorators(Header, {
   publicProps: {

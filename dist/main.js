@@ -8270,7 +8270,7 @@ var App = registerComponent(class extends LightningElement {
 
 function stylesheet(token, useActualHostSelector, useNativeDirPseudoclass) {
   var shadowSelector = token ? ("[" + token + "]") : "";
-  return "h1" + shadowSelector + " {color: rgb(81, 40, 230);background-color: aliceblue;border: 1px solid green;padding: 5px;}";
+  return "h1" + shadowSelector + " {color: rgb(81, 40, 230);background-color: aliceblue;padding: 5px;}";
   /*LWC compiler v2.32.1*/
 }
 var _implicitStylesheets = [stylesheet];

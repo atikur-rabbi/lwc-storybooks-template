@@ -14,13 +14,10 @@
       "watch": "rollup -c --watch"
     },
     "devDependencies": {
-      "@lwc/rollup-plugin": "^2.23.2",
+      "@lwc/rollup-plugin": "^2.32.1",
       "@rollup/plugin-replace": "^4.0.0",
-      "auto-version-js": "^0.3.10",
-      "lwc": "^2.23.2",
-      "npm-run-all": "^4.1.5",
-      "rollup": "^2.79.0",
-      "serve": "^14.0.1"
+      "lwc": "^2.32.1",
+      "rollup": "^2.79.0"
     },
     "lwc": {
         "modules": [

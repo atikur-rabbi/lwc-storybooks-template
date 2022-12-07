@@ -5038,6 +5038,69 @@ function validateLightDomTemplate(template, vm) {
     assert.isTrue(isUndefined$1(template.renderMode), `Shadow DOM components template can't render light DOM templates. Either remove the 'lwc:render-mode' directive from ${getComponentTag(vm)} or set it to 'lwc:render-mode="shadow"`);
   }
 }
+function buildParseFragmentFn(createFragmentFn) {
+  return (strings, ...keys) => {
+    const cache = create(null);
+    return function () {
+      const {
+        context: {
+          hasScopedStyles,
+          stylesheetToken
+        },
+        shadowMode,
+        renderer
+      } = getVMBeingRendered();
+      const hasStyleToken = !isUndefined$1(stylesheetToken);
+      const isSyntheticShadow = shadowMode === 1 /* ShadowMode.Synthetic */;
+      let cacheKey = 0;
+      if (hasStyleToken && hasScopedStyles) {
+        cacheKey |= 1 /* FragmentCache.HAS_SCOPED_STYLE */;
+      }
+
+      if (hasStyleToken && isSyntheticShadow) {
+        cacheKey |= 2 /* FragmentCache.SHADOW_MODE_SYNTHETIC */;
+      }
+
+      if (!isUndefined$1(cache[cacheKey])) {
+        return cache[cacheKey];
+      }
+      const classToken = hasScopedStyles && hasStyleToken ? ' ' + stylesheetToken : '';
+      const classAttrToken = hasScopedStyles && hasStyleToken ? ` class="${stylesheetToken}"` : '';
+      const attrToken = hasStyleToken && isSyntheticShadow ? ' ' + stylesheetToken : '';
+      let htmlFragment = '';
+      for (let i = 0, n = keys.length; i < n; i++) {
+        switch (keys[i]) {
+          case 0:
+            // styleToken in existing class attr
+            htmlFragment += strings[i] + classToken;
+            break;
+          case 1:
+            // styleToken for added class attr
+            htmlFragment += strings[i] + classAttrToken;
+            break;
+          case 2:
+            // styleToken as attr
+            htmlFragment += strings[i] + attrToken;
+            break;
+          case 3:
+            // ${1}${2}
+            htmlFragment += strings[i] + classAttrToken + attrToken;
+            break;
+        }
+      }
+      htmlFragment += strings[strings.length - 1];
+      cache[cacheKey] = createFragmentFn(htmlFragment, renderer);
+      return cache[cacheKey];
+    };
+  };
+}
+// Note: at the moment this code executes, we don't have a renderer yet.
+const parseFragment = buildParseFragmentFn((html, renderer) => {
+  const {
+    createFragment
+  } = renderer;
+  return createFragment(html);
+});
 function evaluateTemplate(vm, html) {
   {
     assert.isTrue(isFunction$1(html), `evaluateTemplate() second argument must be an imported template instead of ${toString$1(html)}`);
@@ -8189,6 +8252,22 @@ freeze(LightningElement);
 seal(LightningElement.prototype);
 /* version: 2.32.1 */
 
+const $fragment1 = parseFragment`<h1${3}>Hello world</h1>`;
+function tmpl($api, $cmp, $slotset, $ctx) {
+  const {st: api_static_fragment} = $api;
+  return [api_static_fragment($fragment1(), 1)];
+  /*LWC compiler v2.32.1*/
+}
+var _tmpl = registerTemplate(tmpl);
+tmpl.stylesheets = [];
+freezeTemplate(tmpl);
+
+var App = registerComponent(class extends LightningElement {
+  /*LWC compiler v2.32.1*/
+}, {
+  tmpl: _tmpl
+});
+
 function stylesheet(token, useActualHostSelector, useNativeDirPseudoclass) {
   var shadowSelector = token ? ("[" + token + "]") : "";
   return "h1" + shadowSelector + " {color: rgb(81, 40, 230);background-color: aliceblue;border: 1px solid green;padding: 5px;}";
@@ -8199,22 +8278,22 @@ var _implicitStylesheets = [stylesheet];
 const stc0 = {
   key: 0
 };
-function tmpl($api, $cmp, $slotset, $ctx) {
+function tmpl$1($api, $cmp, $slotset, $ctx) {
   const {d: api_dynamic_text, t: api_text, h: api_element} = $api;
   return [api_element("h1", stc0, [api_text(api_dynamic_text($cmp.label) + " !!!")])];
   /*LWC compiler v2.32.1*/
 }
-var _tmpl = registerTemplate(tmpl);
-tmpl.stylesheets = [];
+var _tmpl$1 = registerTemplate(tmpl$1);
+tmpl$1.stylesheets = [];
 
 
 if (_implicitStylesheets) {
-  tmpl.stylesheets.push.apply(tmpl.stylesheets, _implicitStylesheets);
+  tmpl$1.stylesheets.push.apply(tmpl$1.stylesheets, _implicitStylesheets);
 }
 if (_implicitStylesheets || undefined) {
-  tmpl.stylesheetToken = "c-header_header";
+  tmpl$1.stylesheetToken = "c-header_header";
 }
-freezeTemplate(tmpl);
+freezeTemplate(tmpl$1);
 
 class Header extends LightningElement {
   constructor(...args) {
@@ -8234,7 +8313,101 @@ registerDecorators(Header, {
  * Show an item
  */
 var Header$1 = registerComponent(Header, {
-  tmpl: _tmpl
+  tmpl: _tmpl$1
 });
 
+function stylesheet$1(token, useActualHostSelector, useNativeDirPseudoclass) {
+  var shadowSelector = token ? ("[" + token + "]") : "";
+  return ".user-card" + shadowSelector + " {font-family: 'Arial', sans-serif;background: #f4f4f4;width: 500px;display: grid;grid-template-columns: 1fr 2fr;grid-gap: 10px;margin-bottom: 15px;border-bottom: darkorchid 5px solid;}.user-card" + shadowSelector + " img" + shadowSelector + " {width: 100%;}.user-card" + shadowSelector + " button" + shadowSelector + " {cursor: pointer;background: darkorchid;color: #fff;border: 0;border-radius: 5px;padding: 5px 10px;}";
+  /*LWC compiler v2.32.1*/
+}
+var _implicitStylesheets$1 = [stylesheet$1];
+
+const stc0$1 = {
+  classMap: {
+    "user-card": true
+  },
+  key: 0
+};
+const stc1 = {
+  key: 2
+};
+const stc2 = {
+  key: 3
+};
+const stc3 = {
+  classMap: {
+    "info": true
+  },
+  key: 4
+};
+const stc4 = {
+  key: 5
+};
+const stc5 = {
+  attrs: {
+    "name": "email"
+  },
+  key: 6
+};
+const stc6 = [];
+const stc7 = {
+  key: 7
+};
+const stc8 = {
+  attrs: {
+    "name": "phone"
+  },
+  key: 8
+};
+function tmpl$2($api, $cmp, $slotset, $ctx) {
+  const {h: api_element, d: api_dynamic_text, t: api_text, s: api_slot} = $api;
+  return [api_element("div", stc0$1, [api_element("img", {
+    attrs: {
+      "src": $cmp.avatar
+    },
+    key: 1
+  }), api_element("div", stc1, [api_element("h3", stc2, [api_text(api_dynamic_text($cmp.name))]), api_element("div", stc3, [api_element("p", stc4, [api_slot("email", stc5, stc6, $slotset)]), api_element("p", stc7, [api_slot("phone", stc8, stc6, $slotset)])])])])];
+  /*LWC compiler v2.32.1*/
+}
+var _tmpl$2 = registerTemplate(tmpl$2);
+tmpl$2.slots = ["email", "phone"];
+tmpl$2.stylesheets = [];
+
+
+if (_implicitStylesheets$1) {
+  tmpl$2.stylesheets.push.apply(tmpl$2.stylesheets, _implicitStylesheets$1);
+}
+if (_implicitStylesheets$1 || undefined) {
+  tmpl$2.stylesheetToken = "c-userCard_userCard";
+}
+freezeTemplate(tmpl$2);
+
+class UserCard extends LightningElement {
+  constructor(...args) {
+    super(...args);
+    this.name = "";
+    this.avatar = "";
+  }
+  /*LWC compiler v2.32.1*/
+}
+registerDecorators(UserCard, {
+  publicProps: {
+    name: {
+      config: 0
+    },
+    avatar: {
+      config: 0
+    }
+  }
+});
+/**
+ * Show an item
+ */
+var UserCard$1 = registerComponent(UserCard, {
+  tmpl: _tmpl$2
+});
+
+customElements.define('c-app', App.CustomElementConstructor);
 customElements.define('c-header', Header$1.CustomElementConstructor);
+customElements.define('c-user-card', UserCard$1.CustomElementConstructor);

@@ -1,0 +1,16 @@
+<template>
+    <div class="user-card">
+      <img src={avatar}/>
+      <div>
+        <h3>{name}</h3>
+        <div class="info">
+          <p>
+            <slot name="email"></slot>
+          </p>
+          <p>
+            <slot name="phone"></slot>
+          </p>
+        </div>
+      </div>
+    </div>
+</template>

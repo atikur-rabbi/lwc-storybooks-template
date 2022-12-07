@@ -1,4 +1,88 @@
 /* proxy-compat-disable */
+/*
+ * Copyright (c) 2018, salesforce.com, inc.
+ * All rights reserved.
+ * SPDX-License-Identifier: MIT
+ * For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/MIT
+ */
+function detect() {
+  // Don't apply polyfill when ProxyCompat is enabled.
+  if ('getKey' in Proxy) {
+    return false;
+  }
+  const proxy = new Proxy([3, 4], {});
+  const res = [1, 2].concat(proxy);
+  return res.length !== 4;
+}
+
+/*
+ * Copyright (c) 2018, salesforce.com, inc.
+ * All rights reserved.
+ * SPDX-License-Identifier: MIT
+ * For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/MIT
+ */
+const {
+  isConcatSpreadable
+} = Symbol;
+const {
+  isArray
+} = Array;
+const {
+  slice: ArraySlice,
+  unshift: ArrayUnshift,
+  shift: ArrayShift
+} = Array.prototype;
+function isObject(O) {
+  return typeof O === 'object' ? O !== null : typeof O === 'function';
+}
+// https://www.ecma-international.org/ecma-262/6.0/#sec-isconcatspreadable
+function isSpreadable(O) {
+  if (!isObject(O)) {
+    return false;
+  }
+  const spreadable = O[isConcatSpreadable];
+  return spreadable !== undefined ? Boolean(spreadable) : isArray(O);
+}
+// https://www.ecma-international.org/ecma-262/6.0/#sec-array.prototype.concat
+function ArrayConcatPolyfill(..._args) {
+  const O = Object(this);
+  const A = [];
+  let N = 0;
+  const items = ArraySlice.call(arguments);
+  ArrayUnshift.call(items, O);
+  while (items.length) {
+    const E = ArrayShift.call(items);
+    if (isSpreadable(E)) {
+      let k = 0;
+      const length = E.length;
+      for (k; k < length; k += 1, N += 1) {
+        if (k in E) {
+          const subElement = E[k];
+          A[N] = subElement;
+        }
+      }
+    } else {
+      A[N] = E;
+      N += 1;
+    }
+  }
+  return A;
+}
+function apply() {
+  // eslint-disable-next-line no-extend-native
+  Array.prototype.concat = ArrayConcatPolyfill;
+}
+
+/*
+ * Copyright (c) 2018, salesforce.com, inc.
+ * All rights reserved.
+ * SPDX-License-Identifier: MIT
+ * For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/MIT
+ */
+if (detect()) {
+  apply();
+}
+
 /**
  * Copyright (C) 2018 salesforce.com, inc.
  */
@@ -13,12 +97,12 @@ function invariant(value, msg) {
     throw new Error(`Invariant Violation: ${msg}`);
   }
 }
-function isTrue$1(value, msg) {
+function isTrue(value, msg) {
   if (!value) {
     throw new Error(`Assert Violation: ${msg}`);
   }
 }
-function isFalse$1(value, msg) {
+function isFalse(value, msg) {
   if (value) {
     throw new Error(`Assert Violation: ${msg}`);
   }
@@ -29,8 +113,8 @@ function fail(msg) {
 var assert = /*#__PURE__*/Object.freeze({
   __proto__: null,
   invariant: invariant,
-  isTrue: isTrue$1,
-  isFalse: isFalse$1,
+  isTrue: isTrue,
+  isFalse: isFalse,
   fail: fail
 });
 
@@ -46,99 +130,37 @@ const {
   defineProperties,
   defineProperty,
   freeze,
-  getOwnPropertyDescriptor: getOwnPropertyDescriptor$1,
-  getOwnPropertyNames: getOwnPropertyNames$1,
-  getPrototypeOf: getPrototypeOf$1,
-  hasOwnProperty: hasOwnProperty$1,
+  getOwnPropertyDescriptor,
+  getOwnPropertyNames,
+  getPrototypeOf,
+  hasOwnProperty,
   isFrozen,
   keys,
   seal,
   setPrototypeOf
 } = Object;
 const {
-  isArray: isArray$1
-} = Array;
-const {
-  concat: ArrayConcat$1,
-  copyWithin: ArrayCopyWithin,
-  fill: ArrayFill,
   filter: ArrayFilter,
   find: ArrayFind,
   indexOf: ArrayIndexOf,
   join: ArrayJoin,
   map: ArrayMap,
-  pop: ArrayPop,
-  push: ArrayPush$1,
+  push: ArrayPush,
   reduce: ArrayReduce,
   reverse: ArrayReverse,
-  shift: ArrayShift,
-  slice: ArraySlice,
-  some: ArraySome,
-  sort: ArraySort,
+  slice: ArraySlice$1,
   splice: ArraySplice,
-  unshift: ArrayUnshift,
+  unshift: ArrayUnshift$1,
   forEach
 } = Array.prototype;
-const {
-  fromCharCode: StringFromCharCode
-} = String;
 const {
   charCodeAt: StringCharCodeAt,
   replace: StringReplace,
   slice: StringSlice,
   toLowerCase: StringToLowerCase
 } = String.prototype;
-function isUndefined$1(obj) {
+function isUndefined(obj) {
   return obj === undefined;
-}
-function isNull(obj) {
-  return obj === null;
-}
-function isTrue(obj) {
-  return obj === true;
-}
-function isFalse(obj) {
-  return obj === false;
-}
-function isFunction$1(obj) {
-  return typeof obj === 'function';
-}
-function isObject(obj) {
-  return typeof obj === 'object';
-}
-function isString(obj) {
-  return typeof obj === 'string';
-}
-function isNumber(obj) {
-  return typeof obj === 'number';
-}
-function noop() {
-  /* Do nothing */
-}
-const OtS$1 = {}.toString;
-function toString$1(obj) {
-  if (obj && obj.toString) {
-    // Arrays might hold objects with "null" prototype So using
-    // Array.prototype.toString directly will cause an error Iterate through
-    // all the items and handle individually.
-    if (isArray$1(obj)) {
-      return ArrayJoin.call(ArrayMap.call(obj, toString$1), ',');
-    }
-    return obj.toString();
-  } else if (typeof obj === 'object') {
-    return OtS$1.call(obj);
-  } else {
-    return obj + '';
-  }
-}
-function getPropertyDescriptor(o, p) {
-  do {
-    const d = getOwnPropertyDescriptor$1(o, p);
-    if (!isUndefined$1(d)) {
-      return d;
-    }
-    o = getPrototypeOf$1(o);
-  } while (o !== null);
 }
 
 /*
@@ -157,23 +179,17 @@ function getPropertyDescriptor(o, p) {
  * https://wicg.github.io/aom/spec/aria-reflection.html
  */
 const AriaPropertyNames = ['ariaActiveDescendant', 'ariaAtomic', 'ariaAutoComplete', 'ariaBusy', 'ariaChecked', 'ariaColCount', 'ariaColIndex', 'ariaColSpan', 'ariaControls', 'ariaCurrent', 'ariaDescribedBy', 'ariaDetails', 'ariaDisabled', 'ariaErrorMessage', 'ariaExpanded', 'ariaFlowTo', 'ariaHasPopup', 'ariaHidden', 'ariaInvalid', 'ariaKeyShortcuts', 'ariaLabel', 'ariaLabelledBy', 'ariaLevel', 'ariaLive', 'ariaModal', 'ariaMultiLine', 'ariaMultiSelectable', 'ariaOrientation', 'ariaOwns', 'ariaPlaceholder', 'ariaPosInSet', 'ariaPressed', 'ariaReadOnly', 'ariaRelevant', 'ariaRequired', 'ariaRoleDescription', 'ariaRowCount', 'ariaRowIndex', 'ariaRowSpan', 'ariaSelected', 'ariaSetSize', 'ariaSort', 'ariaValueMax', 'ariaValueMin', 'ariaValueNow', 'ariaValueText', 'role'];
-const {
-  AriaAttrNameToPropNameMap,
-  AriaPropNameToAttrNameMap
-} = /*@__PURE__*/(() => {
-  const AriaAttrNameToPropNameMap = create(null);
-  const AriaPropNameToAttrNameMap = create(null);
-  // Synthetic creation of all AOM property descriptors for Custom Elements
-  forEach.call(AriaPropertyNames, propName => {
-    const attrName = StringToLowerCase.call(StringReplace.call(propName, /^aria/, () => 'aria-'));
-    AriaAttrNameToPropNameMap[attrName] = propName;
-    AriaPropNameToAttrNameMap[propName] = attrName;
-  });
-  return {
-    AriaAttrNameToPropNameMap,
-    AriaPropNameToAttrNameMap
-  };
-})();
+const AttrNameToPropNameMap = create(null);
+const PropNameToAttrNameMap = create(null);
+// Synthetic creation of all AOM property descriptors for Custom Elements
+forEach.call(AriaPropertyNames, propName => {
+  // Typescript infers the wrong function type for this particular overloaded method:
+  // https://github.com/Microsoft/TypeScript/issues/27972
+  // @ts-ignore type-mismatch
+  const attrName = StringToLowerCase.call(StringReplace.call(propName, /^aria/, 'aria-'));
+  AttrNameToPropNameMap[attrName] = propName;
+  PropNameToAttrNameMap[propName] = attrName;
+});
 
 /*
  * Copyright (c) 2018, salesforce.com, inc.
@@ -182,7 +198,7 @@ const {
  * For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/MIT
  */
 // Inspired from: https://mathiasbynens.be/notes/globalthis
-const _globalThis = /*@__PURE__*/function () {
+const _globalThis = function () {
   // On recent browsers, `globalThis` is already defined. In this case return it directly.
   if (typeof globalThis === 'object') {
     return globalThis;
@@ -221,96 +237,43 @@ const _globalThis = /*@__PURE__*/function () {
  * SPDX-License-Identifier: MIT
  * For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/MIT
  */
-const KEY__IS_NATIVE_SHADOW_ROOT_DEFINED = '$isNativeShadowRootDefined$';
-const KEY__SHADOW_RESOLVER = '$shadowResolver$';
-const KEY__SHADOW_STATIC = '$shadowStaticNode$';
-const KEY__SHADOW_TOKEN = '$shadowToken$';
-const KEY__SYNTHETIC_MODE = '$$lwc-synthetic-mode';
-const KEY__SCOPED_CSS = '$scoped$';
-const XML_NAMESPACE = 'http://www.w3.org/XML/1998/namespace';
-const SVG_NAMESPACE = 'http://www.w3.org/2000/svg';
-const XLINK_NAMESPACE = 'http://www.w3.org/1999/xlink';
-
 /*
- * Copyright (c) 2020, salesforce.com, inc.
- * All rights reserved.
- * SPDX-License-Identifier: MIT
- * For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/MIT
+ * In IE11, symbols are expensive.
+ * Due to the nature of the symbol polyfill. This method abstract the
+ * creation of symbols, so we can fallback to string when native symbols
+ * are not supported. Note that we can't use typeof since it will fail when transpiling.
  */
-const CAMEL_REGEX = /-([a-z])/g;
-// Convoluted map generation so that @lwc/shared remains fully tree-shakable (verify-treeshakable)
-const {
-  NO_STANDARD_ATTRIBUTE_PROPERTY_MAPPING,
-  NO_STANDARD_PROPERTY_ATTRIBUTE_MAPPING
-} = /*#__PURE__*/(() => {
-  /**
-   * Map composed of properties to attributes not following the HTML property to attribute mapping
-   * convention.
-   */
-  const NO_STANDARD_PROPERTY_ATTRIBUTE_MAPPING = new Map([['accessKey', 'accesskey'], ['readOnly', 'readonly'], ['tabIndex', 'tabindex'], ['bgColor', 'bgcolor'], ['colSpan', 'colspan'], ['rowSpan', 'rowspan'], ['contentEditable', 'contenteditable'], ['crossOrigin', 'crossorigin'], ['dateTime', 'datetime'], ['formAction', 'formaction'], ['isMap', 'ismap'], ['maxLength', 'maxlength'], ['minLength', 'minlength'], ['noValidate', 'novalidate'], ['useMap', 'usemap'], ['htmlFor', 'for']]);
-  /**
-   * Inverted map with attribute name key and property name value.
-   */
-  const NO_STANDARD_ATTRIBUTE_PROPERTY_MAPPING = new Map();
-  NO_STANDARD_PROPERTY_ATTRIBUTE_MAPPING.forEach((value, key) => NO_STANDARD_ATTRIBUTE_PROPERTY_MAPPING.set(value, key));
-  return {
-    NO_STANDARD_ATTRIBUTE_PROPERTY_MAPPING,
-    NO_STANDARD_PROPERTY_ATTRIBUTE_MAPPING
-  };
-})();
-/**
- * Map associating previously transformed HTML property into HTML attribute.
- */
-const CACHED_PROPERTY_ATTRIBUTE_MAPPING = new Map();
-/**
- * Map associating previously transformed HTML attribute into HTML property.
- */
-const CACHED_ATTRIBUTE_PROPERTY_MAPPING = new Map();
-function htmlPropertyToAttribute(propName) {
-  const ariaAttributeName = AriaPropNameToAttrNameMap[propName];
-  if (!isUndefined$1(ariaAttributeName)) {
-    return ariaAttributeName;
-  }
-  const specialAttributeName = NO_STANDARD_PROPERTY_ATTRIBUTE_MAPPING.get(propName);
-  if (!isUndefined$1(specialAttributeName)) {
-    return specialAttributeName;
-  }
-  const cachedAttributeName = CACHED_PROPERTY_ATTRIBUTE_MAPPING.get(propName);
-  if (!isUndefined$1(cachedAttributeName)) {
-    return cachedAttributeName;
-  }
-  let attributeName = '';
-  for (let i = 0, len = propName.length; i < len; i++) {
-    const code = StringCharCodeAt.call(propName, i);
-    if (code >= 65 &&
-    // "A"
-    code <= 90 // "Z"
-    ) {
-      attributeName += '-' + StringFromCharCode(code + 32);
-    } else {
-      attributeName += StringFromCharCode(code);
-    }
-  }
-  CACHED_PROPERTY_ATTRIBUTE_MAPPING.set(propName, attributeName);
-  return attributeName;
+const hasNativeSymbolsSupport = Symbol('x').toString() === 'Symbol(x)';
+function createHiddenField(key, namespace) {
+  return hasNativeSymbolsSupport ? Symbol(key) : `$$lwc-${namespace}-${key}$$`;
 }
-function htmlAttributeToProperty(attrName) {
-  const ariaPropertyName = AriaAttrNameToPropNameMap[attrName];
-  if (!isUndefined$1(ariaPropertyName)) {
-    return ariaPropertyName;
+const hiddenFieldsMap = new WeakMap();
+function getHiddenField(o, field) {
+  const valuesByField = hiddenFieldsMap.get(o);
+  if (!isUndefined(valuesByField)) {
+    return valuesByField[field];
   }
-  const specialPropertyName = NO_STANDARD_ATTRIBUTE_PROPERTY_MAPPING.get(attrName);
-  if (!isUndefined$1(specialPropertyName)) {
-    return specialPropertyName;
-  }
-  const cachedPropertyName = CACHED_ATTRIBUTE_PROPERTY_MAPPING.get(attrName);
-  if (!isUndefined$1(cachedPropertyName)) {
-    return cachedPropertyName;
-  }
-  const propertyName = StringReplace.call(attrName, CAMEL_REGEX, g => g[1].toUpperCase());
-  CACHED_ATTRIBUTE_PROPERTY_MAPPING.set(attrName, propertyName);
-  return propertyName;
 }
+const HTML_ATTRIBUTES_TO_PROPERTY = {
+  accesskey: 'accessKey',
+  readonly: 'readOnly',
+  tabindex: 'tabIndex',
+  bgcolor: 'bgColor',
+  colspan: 'colSpan',
+  rowspan: 'rowSpan',
+  contenteditable: 'contentEditable',
+  crossorigin: 'crossOrigin',
+  datetime: 'dateTime',
+  formaction: 'formAction',
+  ismap: 'isMap',
+  maxlength: 'maxLength',
+  minlength: 'minLength',
+  novalidate: 'noValidate',
+  usemap: 'useMap',
+  for: 'htmlFor'
+};
+keys(HTML_ATTRIBUTES_TO_PROPERTY).forEach(attrName => {});
+/** version: 1.7.7 */
 
 /*
  * Copyright (c) 2018, salesforce.com, inc.
@@ -318,23 +281,8 @@ function htmlAttributeToProperty(attrName) {
  * SPDX-License-Identifier: MIT
  * For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/MIT
  */
-// Increment whenever the LWC template compiler changes
-const LWC_VERSION = "2.32.1";
-const LWC_VERSION_COMMENT_REGEX = /\/\*LWC compiler v([\d.]+)\*\/\s*}/;
-/** version: 2.32.1 */
-
-/**
- * Copyright (C) 2018 salesforce.com, inc.
- */
-
-/*
- * Copyright (c) 2018, salesforce.com, inc.
- * All rights reserved.
- * SPDX-License-Identifier: MIT
- * For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/MIT
- */
-function detect(propName) {
-  return getOwnPropertyDescriptor$1(Element.prototype, propName) === undefined;
+function detect$1(propName) {
+  return Object.getOwnPropertyDescriptor(Element.prototype, propName) === undefined;
 }
 
 /*
@@ -359,7 +307,7 @@ function createAriaPropertyPropertyDescriptor(propName, attrName) {
   return {
     get() {
       const map = getAriaPropertyMap(this);
-      if (hasOwnProperty$1.call(map, propName)) {
+      if (hasOwnProperty.call(map, propName)) {
         return map[propName];
       }
       // otherwise just reflect what's in the attribute
@@ -380,11 +328,11 @@ function createAriaPropertyPropertyDescriptor(propName, attrName) {
     enumerable: true
   };
 }
-function patch$1(propName) {
+function patch(propName) {
   // Typescript is inferring the wrong function type for this particular
   // overloaded method: https://github.com/Microsoft/TypeScript/issues/27972
   // @ts-ignore type-mismatch
-  const attrName = AriaPropNameToAttrNameMap[propName];
+  const attrName = PropNameToAttrNameMap[propName];
   const descriptor = createAriaPropertyPropertyDescriptor(propName, attrName);
   Object.defineProperty(Element.prototype, propName, descriptor);
 }
@@ -395,45 +343,18 @@ function patch$1(propName) {
  * SPDX-License-Identifier: MIT
  * For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/MIT
  */
-const ElementPrototypeAriaPropertyNames = keys(AriaPropNameToAttrNameMap);
+const ElementPrototypeAriaPropertyNames = keys(PropNameToAttrNameMap);
 for (let i = 0, len = ElementPrototypeAriaPropertyNames.length; i < len; i += 1) {
   const propName = ElementPrototypeAriaPropertyNames[i];
-  if (detect(propName)) {
-    patch$1(propName);
+  if (detect$1(propName)) {
+    patch(propName);
   }
-}
-if (!_globalThis.lwcRuntimeFlags) {
-  Object.defineProperty(_globalThis, 'lwcRuntimeFlags', {
-    value: create(null)
-  });
-}
-const lwcRuntimeFlags = _globalThis.lwcRuntimeFlags;
-/** version: 2.32.1 */
-
-/*
- * Copyright (c) 2018, salesforce.com, inc.
- * All rights reserved.
- * SPDX-License-Identifier: MIT
- * For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/MIT
- */
-// Only used in LWC's Karma tests
-// @ts-ignore
-if ( typeof __karma__ !== 'undefined') {
-  window.addEventListener('test-dummy-flag', () => {
-    let hasFlag = false;
-    if (lwcRuntimeFlags.DUMMY_TEST_FLAG) {
-      hasFlag = true;
-    }
-    window.dispatchEvent(new CustomEvent('has-dummy-flag', {
-      detail: {
-        package: '@lwc/engine-dom',
-        hasFlag
-      }
-    }));
-  });
 }
 
 /* proxy-compat-disable */
+/**
+ * Copyright (C) 2018 salesforce.com, inc.
+ */
 
 /*
  * Copyright (c) 2018, salesforce.com, inc.
@@ -441,22 +362,247 @@ if ( typeof __karma__ !== 'undefined') {
  * SPDX-License-Identifier: MIT
  * For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/MIT
  */
-// Only used in LWC's Karma tests
-// @ts-ignore
-if ( typeof __karma__ !== 'undefined') {
-  window.addEventListener('test-dummy-flag', () => {
-    let hasFlag = false;
-    if (lwcRuntimeFlags.DUMMY_TEST_FLAG) {
-      hasFlag = true;
-    }
-    window.dispatchEvent(new CustomEvent('has-dummy-flag', {
-      detail: {
-        package: '@lwc/engine-core',
-        hasFlag
-      }
-    }));
-  });
+function invariant$1(value, msg) {
+  if (!value) {
+    throw new Error(`Invariant Violation: ${msg}`);
+  }
 }
+function isTrue$1(value, msg) {
+  if (!value) {
+    throw new Error(`Assert Violation: ${msg}`);
+  }
+}
+function isFalse$2(value, msg) {
+  if (value) {
+    throw new Error(`Assert Violation: ${msg}`);
+  }
+}
+function fail$1(msg) {
+  throw new Error(msg);
+}
+var assert$1 = /*#__PURE__*/Object.freeze({
+  __proto__: null,
+  invariant: invariant$1,
+  isTrue: isTrue$1,
+  isFalse: isFalse$2,
+  fail: fail$1
+});
+/*
+ * Copyright (c) 2018, salesforce.com, inc.
+ * All rights reserved.
+ * SPDX-License-Identifier: MIT
+ * For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/MIT
+ */
+
+const {
+  assign: assign$1,
+  create: create$1,
+  defineProperties: defineProperties$1,
+  defineProperty: defineProperty$1,
+  freeze: freeze$1,
+  getOwnPropertyDescriptor: getOwnPropertyDescriptor$1,
+  getOwnPropertyNames: getOwnPropertyNames$1,
+  getPrototypeOf: getPrototypeOf$1,
+  hasOwnProperty: hasOwnProperty$1,
+  isFrozen: isFrozen$1,
+  keys: keys$1,
+  seal: seal$1,
+  setPrototypeOf: setPrototypeOf$1
+} = Object;
+const {
+  isArray: isArray$2
+} = Array;
+const {
+  filter: ArrayFilter$1,
+  find: ArrayFind$1,
+  indexOf: ArrayIndexOf$1,
+  join: ArrayJoin$1,
+  map: ArrayMap$1,
+  push: ArrayPush$1,
+  reduce: ArrayReduce$1,
+  reverse: ArrayReverse$1,
+  slice: ArraySlice$2,
+  splice: ArraySplice$1,
+  unshift: ArrayUnshift$2,
+  forEach: forEach$1
+} = Array.prototype;
+const {
+  charCodeAt: StringCharCodeAt$1,
+  replace: StringReplace$1,
+  slice: StringSlice$1,
+  toLowerCase: StringToLowerCase$1
+} = String.prototype;
+function isUndefined$1(obj) {
+  return obj === undefined;
+}
+function isNull$1(obj) {
+  return obj === null;
+}
+function isTrue$1$1(obj) {
+  return obj === true;
+}
+function isFalse$1$1(obj) {
+  return obj === false;
+}
+function isFunction$1(obj) {
+  return typeof obj === 'function';
+}
+function isObject$2(obj) {
+  return typeof obj === 'object';
+}
+function isString(obj) {
+  return typeof obj === 'string';
+}
+function isNumber(obj) {
+  return typeof obj === 'number';
+}
+const OtS$1 = {}.toString;
+function toString$1(obj) {
+  if (obj && obj.toString) {
+    // Arrays might hold objects with "null" prototype So using
+    // Array.prototype.toString directly will cause an error Iterate through
+    // all the items and handle individually.
+    if (isArray$2(obj)) {
+      return ArrayJoin$1.call(ArrayMap$1.call(obj, toString$1), ',');
+    }
+    return obj.toString();
+  } else if (typeof obj === 'object') {
+    return OtS$1.call(obj);
+  } else {
+    return obj + emptyString$1;
+  }
+}
+function getPropertyDescriptor(o, p) {
+  do {
+    const d = getOwnPropertyDescriptor$1(o, p);
+    if (!isUndefined$1(d)) {
+      return d;
+    }
+    o = getPrototypeOf$1(o);
+  } while (o !== null);
+}
+const emptyString$1 = '';
+/*
+ * Copyright (c) 2018, salesforce.com, inc.
+ * All rights reserved.
+ * SPDX-License-Identifier: MIT
+ * For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/MIT
+ */
+
+/**
+ * According to the following list, there are 48 aria attributes of which two (ariaDropEffect and
+ * ariaGrabbed) are deprecated:
+ * https://www.w3.org/TR/wai-aria-1.1/#x6-6-definitions-of-states-and-properties-all-aria-attributes
+ *
+ * The above list of 46 aria attributes is consistent with the following resources:
+ * https://github.com/w3c/aria/pull/708/files#diff-eacf331f0ffc35d4b482f1d15a887d3bR11060
+ * https://wicg.github.io/aom/spec/aria-reflection.html
+ */
+
+const AriaPropertyNames$1 = ['ariaActiveDescendant', 'ariaAtomic', 'ariaAutoComplete', 'ariaBusy', 'ariaChecked', 'ariaColCount', 'ariaColIndex', 'ariaColSpan', 'ariaControls', 'ariaCurrent', 'ariaDescribedBy', 'ariaDetails', 'ariaDisabled', 'ariaErrorMessage', 'ariaExpanded', 'ariaFlowTo', 'ariaHasPopup', 'ariaHidden', 'ariaInvalid', 'ariaKeyShortcuts', 'ariaLabel', 'ariaLabelledBy', 'ariaLevel', 'ariaLive', 'ariaModal', 'ariaMultiLine', 'ariaMultiSelectable', 'ariaOrientation', 'ariaOwns', 'ariaPlaceholder', 'ariaPosInSet', 'ariaPressed', 'ariaReadOnly', 'ariaRelevant', 'ariaRequired', 'ariaRoleDescription', 'ariaRowCount', 'ariaRowIndex', 'ariaRowSpan', 'ariaSelected', 'ariaSetSize', 'ariaSort', 'ariaValueMax', 'ariaValueMin', 'ariaValueNow', 'ariaValueText', 'role'];
+const AttrNameToPropNameMap$1 = create$1(null);
+const PropNameToAttrNameMap$1 = create$1(null); // Synthetic creation of all AOM property descriptors for Custom Elements
+
+forEach$1.call(AriaPropertyNames$1, propName => {
+  // Typescript infers the wrong function type for this particular overloaded method:
+  // https://github.com/Microsoft/TypeScript/issues/27972
+  // @ts-ignore type-mismatch
+  const attrName = StringToLowerCase$1.call(StringReplace$1.call(propName, /^aria/, 'aria-'));
+  AttrNameToPropNameMap$1[attrName] = propName;
+  PropNameToAttrNameMap$1[propName] = attrName;
+});
+/*
+ * Copyright (c) 2018, salesforce.com, inc.
+ * All rights reserved.
+ * SPDX-License-Identifier: MIT
+ * For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/MIT
+ */
+// Inspired from: https://mathiasbynens.be/notes/globalthis
+
+const _globalThis$1 = function () {
+  // On recent browsers, `globalThis` is already defined. In this case return it directly.
+  if (typeof globalThis === 'object') {
+    return globalThis;
+  }
+  let _globalThis;
+  try {
+    // eslint-disable-next-line no-extend-native
+    Object.defineProperty(Object.prototype, '__magic__', {
+      get: function () {
+        return this;
+      },
+      configurable: true
+    }); // __magic__ is undefined in Safari 10 and IE10 and older.
+    // @ts-ignore
+    // eslint-disable-next-line no-undef
+
+    _globalThis = __magic__; // @ts-ignore
+
+    delete Object.prototype.__magic__;
+  } catch (ex) {// In IE8, Object.defineProperty only works on DOM objects.
+  } finally {
+    // If the magic above fails for some reason we assume that we are in a legacy browser.
+    // Assume `window` exists in this case.
+    if (typeof _globalThis === 'undefined') {
+      // @ts-ignore
+      _globalThis = window;
+    }
+  }
+  return _globalThis;
+}();
+/*
+ * Copyright (c) 2018, salesforce.com, inc.
+ * All rights reserved.
+ * SPDX-License-Identifier: MIT
+ * For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/MIT
+ */
+
+/*
+ * In IE11, symbols are expensive.
+ * Due to the nature of the symbol polyfill. This method abstract the
+ * creation of symbols, so we can fallback to string when native symbols
+ * are not supported. Note that we can't use typeof since it will fail when transpiling.
+ */
+
+const hasNativeSymbolsSupport$1 = Symbol('x').toString() === 'Symbol(x)';
+function createHiddenField$1(key, namespace) {
+  return hasNativeSymbolsSupport$1 ? Symbol(key) : `$$lwc-${namespace}-${key}$$`;
+}
+const hiddenFieldsMap$1 = new WeakMap();
+function setHiddenField$1(o, field, value) {
+  let valuesByField = hiddenFieldsMap$1.get(o);
+  if (isUndefined$1(valuesByField)) {
+    valuesByField = create$1(null);
+    hiddenFieldsMap$1.set(o, valuesByField);
+  }
+  valuesByField[field] = value;
+}
+function getHiddenField$1(o, field) {
+  const valuesByField = hiddenFieldsMap$1.get(o);
+  if (!isUndefined$1(valuesByField)) {
+    return valuesByField[field];
+  }
+}
+const HTML_ATTRIBUTES_TO_PROPERTY$1 = {
+  accesskey: 'accessKey',
+  readonly: 'readOnly',
+  tabindex: 'tabIndex',
+  bgcolor: 'bgColor',
+  colspan: 'colSpan',
+  rowspan: 'rowSpan',
+  contenteditable: 'contentEditable',
+  crossorigin: 'crossOrigin',
+  datetime: 'dateTime',
+  formaction: 'formAction',
+  ismap: 'isMap',
+  maxlength: 'maxLength',
+  minlength: 'minLength',
+  novalidate: 'noValidate',
+  usemap: 'useMap',
+  for: 'htmlFor'
+};
+keys$1(HTML_ATTRIBUTES_TO_PROPERTY$1).forEach(attrName => {});
+/** version: 1.7.7 */
 
 /*
  * Copyright (c) 2018, salesforce.com, inc.
@@ -466,8 +612,8 @@ if ( typeof __karma__ !== 'undefined') {
  */
 let nextTickCallbackQueue = [];
 const SPACE_CHAR = 32;
-const EmptyObject = seal(create(null));
-const EmptyArray = seal([]);
+const EmptyObject = seal$1(create$1(null));
+const EmptyArray = seal$1([]);
 function flushCallbackQueue() {
   {
     if (nextTickCallbackQueue.length === 0) {
@@ -476,6 +622,7 @@ function flushCallbackQueue() {
   }
   const callbacks = nextTickCallbackQueue;
   nextTickCallbackQueue = []; // reset to a new queue
+
   for (let i = 0, len = callbacks.length; i < len; i += 1) {
     callbacks[i]();
   }
@@ -491,58 +638,6 @@ function addCallbackToNextTick(callback) {
   }
   ArrayPush$1.call(nextTickCallbackQueue, callback);
 }
-// Borrowed from Vue template compiler.
-// https://github.com/vuejs/vue/blob/531371b818b0e31a989a06df43789728f23dc4e8/src/platforms/web/util/style.js#L5-L16
-const DECLARATION_DELIMITER = /;(?![^(]*\))/g;
-const PROPERTY_DELIMITER = /:(.+)/;
-function parseStyleText(cssText) {
-  const styleMap = {};
-  const declarations = cssText.split(DECLARATION_DELIMITER);
-  for (const declaration of declarations) {
-    if (declaration) {
-      const [prop, value] = declaration.split(PROPERTY_DELIMITER);
-      if (prop !== undefined && value !== undefined) {
-        styleMap[prop.trim()] = value.trim();
-      }
-    }
-  }
-  return styleMap;
-}
-// Make a shallow copy of an object but omit the given key
-function cloneAndOmitKey(object, keyToOmit) {
-  const result = {};
-  for (const key of Object.keys(object)) {
-    if (key !== keyToOmit) {
-      result[key] = object[key];
-    }
-  }
-  return result;
-}
-function flattenStylesheets(stylesheets) {
-  const list = [];
-  for (const stylesheet of stylesheets) {
-    if (!Array.isArray(stylesheet)) {
-      list.push(stylesheet);
-    } else {
-      list.push(...flattenStylesheets(stylesheet));
-    }
-  }
-  return list;
-}
-// Set a ref (lwc:ref) on a VM, from a template API
-function setRefVNode(vm, ref, vnode) {
-  if ( isUndefined$1(vm.refVNodes)) {
-    throw new Error('refVNodes must be defined when setting a ref');
-  }
-  // If this method is called, then vm.refVNodes is set as the template has refs.
-  // If not, then something went wrong and we threw an error above.
-  const refVNodes = vm.refVNodes;
-  // In cases of conflict (two elements with the same ref), prefer, the last one,
-  // in depth-first traversal order.
-  if (!(ref in refVNodes) || refVNodes[ref].key < vnode.key) {
-    refVNodes[ref] = vnode;
-  }
-}
 
 /*
  * Copyright (c) 2019, salesforce.com, inc.
@@ -550,11 +645,22 @@ function setRefVNode(vm, ref, vnode) {
  * SPDX-License-Identifier: MIT
  * For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/MIT
  */
+const {
+  create: create$1$1
+} = Object;
+const {
+  splice: ArraySplice$1$1,
+  indexOf: ArrayIndexOf$1$1,
+  push: ArrayPush$1$1
+} = Array.prototype;
 const TargetToReactiveRecordMap = new WeakMap();
+function isUndefined$1$1(obj) {
+  return obj === undefined;
+}
 function getReactiveRecord(target) {
   let reactiveRecord = TargetToReactiveRecordMap.get(target);
-  if (isUndefined$1(reactiveRecord)) {
-    const newRecord = create(null);
+  if (isUndefined$1$1(reactiveRecord)) {
+    const newRecord = create$1$1(null);
     reactiveRecord = newRecord;
     TargetToReactiveRecordMap.set(target, newRecord);
   }
@@ -563,9 +669,9 @@ function getReactiveRecord(target) {
 let currentReactiveObserver = null;
 function valueMutated(target, key) {
   const reactiveRecord = TargetToReactiveRecordMap.get(target);
-  if (!isUndefined$1(reactiveRecord)) {
+  if (!isUndefined$1$1(reactiveRecord)) {
     const reactiveObservers = reactiveRecord[key];
-    if (!isUndefined$1(reactiveObservers)) {
+    if (!isUndefined$1$1(reactiveObservers)) {
       for (let i = 0, len = reactiveObservers.length; i < len; i += 1) {
         const ro = reactiveObservers[i];
         ro.notify();
@@ -581,14 +687,14 @@ function valueObserved(target, key) {
   const ro = currentReactiveObserver;
   const reactiveRecord = getReactiveRecord(target);
   let reactiveObservers = reactiveRecord[key];
-  if (isUndefined$1(reactiveObservers)) {
+  if (isUndefined$1$1(reactiveObservers)) {
     reactiveObservers = [];
     reactiveRecord[key] = reactiveObservers;
   } else if (reactiveObservers[0] === ro) {
     return; // perf optimization considering that most subscriptions will come from the same record
   }
 
-  if (ArrayIndexOf.call(reactiveObservers, ro) === -1) {
+  if (ArrayIndexOf$1$1.call(reactiveObservers, ro) === -1) {
     ro.link(reactiveObservers);
   }
 }
@@ -617,6 +723,7 @@ class ReactiveObserver {
    * from any Reactive Record that has a reference to it, to prevent future
    * notifications about previously recorded access.
    */
+
   reset() {
     const {
       listeners
@@ -625,37 +732,34 @@ class ReactiveObserver {
     if (len > 0) {
       for (let i = 0; i < len; i += 1) {
         const set = listeners[i];
-        const pos = ArrayIndexOf.call(listeners[i], this);
-        ArraySplice.call(set, pos, 1);
+        const pos = ArrayIndexOf$1$1.call(listeners[i], this);
+        ArraySplice$1$1.call(set, pos, 1);
       }
       listeners.length = 0;
     }
-  }
-  // friend methods
+  } // friend methods
+
   notify() {
     this.callback.call(undefined, this);
   }
   link(reactiveObservers) {
-    ArrayPush$1.call(reactiveObservers, this);
-    // we keep track of observing records where the observing record was added to so we can do some clean up later on
-    ArrayPush$1.call(this.listeners, reactiveObservers);
+    ArrayPush$1$1.call(reactiveObservers, this); // we keep track of observing records where the observing record was added to so we can do some clean up later on
+
+    ArrayPush$1$1.call(this.listeners, reactiveObservers);
   }
 }
+
+/*
+ * Copyright (c) 2018, salesforce.com, inc.
+ * All rights reserved.
+ * SPDX-License-Identifier: MIT
+ * For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/MIT
+ */
 function componentValueMutated(vm, key) {
-  // On the server side, we don't need mutation tracking. Skipping it improves performance.
-  {
-    valueMutated(vm.component, key);
-  }
+  valueMutated(vm.component, key);
 }
 function componentValueObserved(vm, key) {
-  // On the server side, we don't need mutation tracking. Skipping it improves performance.
-  {
-    valueObserved(vm.component, key);
-  }
-}
-function createReactiveObserver(callback) {
-  // On the server side, we don't need mutation tracking. Skipping it improves performance.
-  return new ReactiveObserver(callback);
+  valueObserved(vm.component, key);
 }
 
 /*
@@ -665,23 +769,23 @@ function createReactiveObserver(callback) {
  * For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/MIT
  */
 function getComponentTag(vm) {
-  return `<${StringToLowerCase.call(vm.tagName)}>`;
-}
-// TODO [#1695]: Unify getComponentStack and getErrorComponentStack
+  return `<${StringToLowerCase$1.call(vm.tagName)}>`;
+} // TODO [#1695]: Unify getComponentStack and getErrorComponentStack
+
 function getComponentStack(vm) {
   const stack = [];
   let prefix = '';
-  while (!isNull(vm.owner)) {
+  while (!isNull$1(vm.owner)) {
     ArrayPush$1.call(stack, prefix + getComponentTag(vm));
     vm = vm.owner;
     prefix += '\t';
   }
-  return ArrayJoin.call(stack, '\n');
+  return ArrayJoin$1.call(stack, '\n');
 }
 function getErrorComponentStack(vm) {
   const wcStack = [];
   let currentVm = vm;
-  while (!isNull(currentVm)) {
+  while (!isNull$1(currentVm)) {
     ArrayPush$1.call(wcStack, getComponentTag(currentVm));
     currentVm = currentVm.owner;
   }
@@ -694,25 +798,8 @@ function getErrorComponentStack(vm) {
  * SPDX-License-Identifier: MIT
  * For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/MIT
  */
-function addErrorComponentStack(vm, error) {
-  if (!isFrozen(error) && isUndefined$1(error.wcStack)) {
-    const wcStack = getErrorComponentStack(vm);
-    defineProperty(error, 'wcStack', {
-      get() {
-        return wcStack;
-      }
-    });
-  }
-}
-
-/*
- * Copyright (c) 2018, salesforce.com, inc.
- * All rights reserved.
- * SPDX-License-Identifier: MIT
- * For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/MIT
- */
-function log(method, message, vm) {
-  let msg = `[LWC ${method}]: ${message}`;
+function logError(message, vm) {
+  let msg = `[LWC error]: ${message}`;
   if (!isUndefined$1(vm)) {
     msg = `${msg}\n${getComponentStack(vm)}`;
   }
@@ -720,29 +807,9 @@ function log(method, message, vm) {
     throw new Error(msg);
   } catch (e) {
     /* eslint-disable-next-line no-console */
-    console[method](e);
+    console.error(e);
   }
 }
-function logError(message, vm) {
-  log('error', message, vm);
-}
-function logWarn(message, vm) {
-  log('warn', message, vm);
-}
-
-/*
- * Copyright (c) 2020, salesforce.com, inc.
- * All rights reserved.
- * SPDX-License-Identifier: MIT
- * For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/MIT
- */
-function resolveCircularModuleDependency(fn) {
-  const module = fn();
-  return (module === null || module === void 0 ? void 0 : module.__esModule) ? module.default : module;
-}
-function isCircularModuleDependency(obj) {
-  return isFunction$1(obj) && hasOwnProperty$1.call(obj, '__circular__');
-}
 
 /*
  * Copyright (c) 2018, salesforce.com, inc.
@@ -750,10 +817,59 @@ function isCircularModuleDependency(obj) {
  * SPDX-License-Identifier: MIT
  * For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/MIT
  */
-// This is a temporary workaround to get the @lwc/engine-server to evaluate in node without having
-// to inject at runtime.
-const HTMLElementConstructor = typeof HTMLElement !== 'undefined' ? HTMLElement : function () {};
-const HTMLElementPrototype = HTMLElementConstructor.prototype;
+
+function handleEvent(event, vnode) {
+  const {
+    type
+  } = event;
+  const {
+    data: {
+      on
+    }
+  } = vnode;
+  const handler = on && on[type]; // call event handler if exists
+
+  if (handler) {
+    handler.call(undefined, event);
+  }
+}
+function createListener() {
+  return function handler(event) {
+    handleEvent(event, handler.vnode);
+  };
+}
+function updateAllEventListeners(oldVnode, vnode) {
+  if (isUndefined$1(oldVnode.listener)) {
+    createAllEventListeners(vnode);
+  } else {
+    vnode.listener = oldVnode.listener;
+    vnode.listener.vnode = vnode;
+  }
+}
+function createAllEventListeners(vnode) {
+  const {
+    elm,
+    data: {
+      on
+    },
+    owner: {
+      renderer
+    }
+  } = vnode;
+  if (isUndefined$1(on)) {
+    return;
+  }
+  const listener = vnode.listener = createListener();
+  listener.vnode = vnode;
+  let name;
+  for (name in on) {
+    renderer.addEventListener(elm, name, listener);
+  }
+}
+var modEvents = {
+  update: updateAllEventListeners,
+  create: createAllEventListeners
+};
 
 /*
  * Copyright (c) 2018, salesforce.com, inc.
@@ -761,15 +877,20 @@ const HTMLElementPrototype = HTMLElementConstructor.prototype;
  * SPDX-License-Identifier: MIT
  * For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/MIT
  */
-// These properties get added to LWCElement.prototype publicProps automatically
-const defaultDefHTMLPropertyNames = ['accessKey', 'dir', 'draggable', 'hidden', 'id', 'lang', 'spellcheck', 'tabIndex', 'title'];
+
+const defaultDefHTMLPropertyNames = ['accessKey', 'dir', 'draggable', 'hidden', 'id', 'lang', 'spellcheck', 'tabIndex', 'title']; // Few more exceptions that are using the attribute name to match the property in lowercase.
+// this list was compiled from https://msdn.microsoft.com/en-us/library/ms533062(v=vs.85).aspx
+// and https://developer.mozilla.org/en-US/docs/Web/HTML/Attributes
+// Note: this list most be in sync with the compiler as well.
+
+const HTMLPropertyNamesWithLowercasedReflectiveAttributes = ['accessKey', 'readOnly', 'tabIndex', 'bgColor', 'colSpan', 'rowSpan', 'contentEditable', 'dateTime', 'formAction', 'isMap', 'maxLength', 'useMap'];
 function offsetPropertyErrorMessage(name) {
   return `Using the \`${name}\` property is an anti-pattern because it rounds the value to an integer. Instead, use the \`getBoundingClientRect\` method to obtain fractional values for the size of an element and its position relative to the viewport.`;
-}
-// Global HTML Attributes & Properties
+} // Global HTML Attributes & Properties
 // https://developer.mozilla.org/en-US/docs/Web/HTML/Global_attributes
 // https://developer.mozilla.org/en-US/docs/Web/API/HTMLElement
-const globalHTMLProperties = assign(create(null), {
+
+const globalHTMLProperties = assign$1(create$1(null), {
   accessKey: {
     attribute: 'accesskey'
   },
@@ -855,6 +976,30 @@ const globalHTMLProperties = assign(create(null), {
     attribute: 'role'
   }
 });
+const AttrNameToPropNameMap$1$1 = assign$1(create$1(null), AttrNameToPropNameMap$1);
+const PropNameToAttrNameMap$1$1 = assign$1(create$1(null), PropNameToAttrNameMap$1);
+forEach$1.call(defaultDefHTMLPropertyNames, propName => {
+  const attrName = StringToLowerCase$1.call(propName);
+  AttrNameToPropNameMap$1$1[attrName] = propName;
+  PropNameToAttrNameMap$1$1[propName] = attrName;
+});
+forEach$1.call(HTMLPropertyNamesWithLowercasedReflectiveAttributes, propName => {
+  const attrName = StringToLowerCase$1.call(propName);
+  AttrNameToPropNameMap$1$1[attrName] = propName;
+  PropNameToAttrNameMap$1$1[propName] = attrName;
+});
+const CAPS_REGEX = /[A-Z]/g;
+/**
+ * This method maps between property names
+ * and the corresponding attribute name.
+ */
+
+function getAttrNameFromPropName(propName) {
+  if (isUndefined$1(PropNameToAttrNameMap$1$1[propName])) {
+    PropNameToAttrNameMap$1$1[propName] = StringReplace$1.call(propName, CAPS_REGEX, match => '-' + match.toLowerCase());
+  }
+  return PropNameToAttrNameMap$1$1[propName];
+}
 let controlledElement = null;
 let controlledAttributeName;
 function isAttributeLocked(elm, attrName) {
@@ -875,30 +1020,69 @@ function unlockAttribute(elm, key) {
  * SPDX-License-Identifier: MIT
  * For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/MIT
  */
-/**
- * This is a descriptor map that contains
- * all standard properties that a Custom Element can support (including AOM properties), which
- * determines what kind of capabilities the Base HTML Element and
- * Base Lightning Element should support.
- */
-const HTMLElementOriginalDescriptors = create(null);
-forEach.call(keys(AriaPropNameToAttrNameMap), propName => {
-  // Note: intentionally using our in-house getPropertyDescriptor instead of getOwnPropertyDescriptor here because
-  // in IE11, some properties are on Element.prototype instead of HTMLElement, just to be sure.
-  const descriptor = getPropertyDescriptor(HTMLElementPrototype, propName);
-  if (!isUndefined$1(descriptor)) {
-    HTMLElementOriginalDescriptors[propName] = descriptor;
+const xlinkNS = 'http://www.w3.org/1999/xlink';
+const xmlNS = 'http://www.w3.org/XML/1998/namespace';
+const ColonCharCode = 58;
+function updateAttrs(oldVnode, vnode) {
+  const {
+    data: {
+      attrs
+    },
+    owner: {
+      renderer
+    }
+  } = vnode;
+  if (isUndefined$1(attrs)) {
+    return;
   }
-});
-forEach.call(defaultDefHTMLPropertyNames, propName => {
-  // Note: intentionally using our in-house getPropertyDescriptor instead of getOwnPropertyDescriptor here because
-  // in IE11, id property is on Element.prototype instead of HTMLElement, and we suspect that more will fall into
-  // this category, so, better to be sure.
-  const descriptor = getPropertyDescriptor(HTMLElementPrototype, propName);
-  if (!isUndefined$1(descriptor)) {
-    HTMLElementOriginalDescriptors[propName] = descriptor;
+  let {
+    data: {
+      attrs: oldAttrs
+    }
+  } = oldVnode;
+  if (oldAttrs === attrs) {
+    return;
   }
-});
+  {
+    assert$1.invariant(isUndefined$1(oldAttrs) || keys$1(oldAttrs).join(',') === keys$1(attrs).join(','), `vnode.data.attrs cannot change shape.`);
+  }
+  const elm = vnode.elm;
+  const {
+    setAttribute,
+    removeAttribute
+  } = renderer;
+  let key;
+  oldAttrs = isUndefined$1(oldAttrs) ? EmptyObject : oldAttrs; // update modified attributes, add new attributes
+  // this routine is only useful for data-* attributes in all kind of elements
+  // and aria-* in standard elements (custom elements will use props for these)
+
+  for (key in attrs) {
+    const cur = attrs[key];
+    const old = oldAttrs[key];
+    if (old !== cur) {
+      unlockAttribute(elm, key);
+      if (StringCharCodeAt$1.call(key, 3) === ColonCharCode) {
+        // Assume xml namespace
+        setAttribute(elm, key, cur, xmlNS);
+      } else if (StringCharCodeAt$1.call(key, 5) === ColonCharCode) {
+        // Assume xlink namespace
+        setAttribute(elm, key, cur, xlinkNS);
+      } else if (isNull$1(cur)) {
+        removeAttribute(elm, key);
+      } else {
+        setAttribute(elm, key, cur);
+      }
+      lockAttribute();
+    }
+  }
+}
+const emptyVNode = {
+  data: {}
+};
+var modAttrs = {
+  create: vnode => updateAttrs(emptyVNode, vnode),
+  update: updateAttrs
+};
 
 /*
  * Copyright (c) 2018, salesforce.com, inc.
@@ -906,15 +1090,425 @@ forEach.call(defaultDefHTMLPropertyNames, propName => {
  * SPDX-License-Identifier: MIT
  * For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/MIT
  */
+
+function isLiveBindingProp(sel, key) {
+  // For properties with live bindings, we read values from the DOM element
+  // instead of relying on internally tracked values.
+  return sel === 'input' && (key === 'value' || key === 'checked');
+}
+function update(oldVnode, vnode) {
+  const props = vnode.data.props;
+  if (isUndefined$1(props)) {
+    return;
+  }
+  const oldProps = oldVnode.data.props;
+  if (oldProps === props) {
+    return;
+  }
+  {
+    assert$1.invariant(isUndefined$1(oldProps) || keys$1(oldProps).join(',') === keys$1(props).join(','), 'vnode.data.props cannot change shape.');
+  }
+  const isFirstPatch = isUndefined$1(oldProps);
+  const {
+    elm,
+    sel,
+    owner: {
+      renderer
+    }
+  } = vnode;
+  for (const key in props) {
+    const cur = props[key]; // if it is the first time this element is patched, or the current value is different to the previous value...
+
+    if (isFirstPatch || cur !== (isLiveBindingProp(sel, key) ? renderer.getProperty(elm, key) : oldProps[key])) {
+      renderer.setProperty(elm, key, cur);
+    }
+  }
+}
+const emptyVNode$1 = {
+  data: {}
+};
+var modProps = {
+  create: vnode => update(emptyVNode$1, vnode),
+  update
+};
+
+/*
+ * Copyright (c) 2018, salesforce.com, inc.
+ * All rights reserved.
+ * SPDX-License-Identifier: MIT
+ * For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/MIT
+ */
+const classNameToClassMap = create$1(null);
+function getMapFromClassName(className) {
+  // Intentionally using == to match undefined and null values from computed style attribute
+  if (className == null) {
+    return EmptyObject;
+  } // computed class names must be string
+
+  className = isString(className) ? className : className + '';
+  let map = classNameToClassMap[className];
+  if (map) {
+    return map;
+  }
+  map = create$1(null);
+  let start = 0;
+  let o;
+  const len = className.length;
+  for (o = 0; o < len; o++) {
+    if (StringCharCodeAt$1.call(className, o) === SPACE_CHAR) {
+      if (o > start) {
+        map[StringSlice$1.call(className, start, o)] = true;
+      }
+      start = o + 1;
+    }
+  }
+  if (o > start) {
+    map[StringSlice$1.call(className, start, o)] = true;
+  }
+  classNameToClassMap[className] = map;
+  {
+    // just to make sure that this object never changes as part of the diffing algo
+    freeze$1(map);
+  }
+  return map;
+}
+function updateClassAttribute(oldVnode, vnode) {
+  const {
+    elm,
+    data: {
+      className: newClass
+    },
+    owner: {
+      renderer
+    }
+  } = vnode;
+  const {
+    data: {
+      className: oldClass
+    }
+  } = oldVnode;
+  if (oldClass === newClass) {
+    return;
+  }
+  const classList = renderer.getClassList(elm);
+  const newClassMap = getMapFromClassName(newClass);
+  const oldClassMap = getMapFromClassName(oldClass);
+  let name;
+  for (name in oldClassMap) {
+    // remove only if it is not in the new class collection and it is not set from within the instance
+    if (isUndefined$1(newClassMap[name])) {
+      classList.remove(name);
+    }
+  }
+  for (name in newClassMap) {
+    if (isUndefined$1(oldClassMap[name])) {
+      classList.add(name);
+    }
+  }
+}
+const emptyVNode$2 = {
+  data: {}
+};
+var modComputedClassName = {
+  create: vnode => updateClassAttribute(emptyVNode$2, vnode),
+  update: updateClassAttribute
+};
+
+/*
+ * Copyright (c) 2018, salesforce.com, inc.
+ * All rights reserved.
+ * SPDX-License-Identifier: MIT
+ * For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/MIT
+ */
+
+function updateStyleAttribute(oldVnode, vnode) {
+  const {
+    elm,
+    data: {
+      style: newStyle
+    },
+    owner: {
+      renderer
+    }
+  } = vnode;
+  const {
+    getStyleDeclaration,
+    removeAttribute
+  } = renderer;
+  if (oldVnode.data.style === newStyle) {
+    return;
+  }
+  const style = getStyleDeclaration(elm);
+  if (!isString(newStyle) || newStyle === '') {
+    removeAttribute(elm, 'style');
+  } else {
+    style.cssText = newStyle;
+  }
+}
+const emptyVNode$3 = {
+  data: {}
+};
+var modComputedStyle = {
+  create: vnode => updateStyleAttribute(emptyVNode$3, vnode),
+  update: updateStyleAttribute
+};
+
+/*
+ * Copyright (c) 2018, salesforce.com, inc.
+ * All rights reserved.
+ * SPDX-License-Identifier: MIT
+ * For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/MIT
+ */
+// The compiler takes care of transforming the inline classnames into an object. It's faster to set the
+// different classnames properties individually instead of via a string.
+
+function createClassAttribute(vnode) {
+  const {
+    elm,
+    data: {
+      classMap
+    },
+    owner: {
+      renderer
+    }
+  } = vnode;
+  if (isUndefined$1(classMap)) {
+    return;
+  }
+  const classList = renderer.getClassList(elm);
+  for (const name in classMap) {
+    classList.add(name);
+  }
+}
+var modStaticClassName = {
+  create: createClassAttribute
+};
+
+/*
+ * Copyright (c) 2018, salesforce.com, inc.
+ * All rights reserved.
+ * SPDX-License-Identifier: MIT
+ * For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/MIT
+ */
+// The compiler takes care of transforming the inline style into an object. It's faster to set the
+// different style properties individually instead of via a string.
+
+function createStyleAttribute(vnode) {
+  const {
+    elm,
+    data: {
+      styleMap
+    },
+    owner: {
+      renderer
+    }
+  } = vnode;
+  if (isUndefined$1(styleMap)) {
+    return;
+  }
+  const style = renderer.getStyleDeclaration(elm);
+  for (const name in styleMap) {
+    style[name] = styleMap[name];
+  }
+}
+var modStaticStyle = {
+  create: createStyleAttribute
+};
+
+/*
+ * Copyright (c) 2018, salesforce.com, inc.
+ * All rights reserved.
+ * SPDX-License-Identifier: MIT
+ * For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/MIT
+ */
+
+/**
+@license
+Copyright (c) 2015 Simon Friis Vindum.
+This code may only be used under the MIT License found at
+https://github.com/snabbdom/snabbdom/blob/master/LICENSE
+Code distributed by Snabbdom as part of the Snabbdom project at
+https://github.com/snabbdom/snabbdom/
+*/
+function isUndef(s) {
+  return s === undefined;
+}
+function sameVnode(vnode1, vnode2) {
+  return vnode1.key === vnode2.key && vnode1.sel === vnode2.sel;
+}
+function isVNode(vnode) {
+  return vnode != null;
+}
+function createKeyToOldIdx(children, beginIdx, endIdx) {
+  const map = {};
+  let j, key, ch; // TODO [#1637]: simplify this by assuming that all vnodes has keys
+
+  for (j = beginIdx; j <= endIdx; ++j) {
+    ch = children[j];
+    if (isVNode(ch)) {
+      key = ch.key;
+      if (key !== undefined) {
+        map[key] = j;
+      }
+    }
+  }
+  return map;
+}
+function addVnodes(parentElm, before, vnodes, startIdx, endIdx) {
+  for (; startIdx <= endIdx; ++startIdx) {
+    const ch = vnodes[startIdx];
+    if (isVNode(ch)) {
+      ch.hook.create(ch);
+      ch.hook.insert(ch, parentElm, before);
+    }
+  }
+}
+function removeVnodes(parentElm, vnodes, startIdx, endIdx) {
+  for (; startIdx <= endIdx; ++startIdx) {
+    const ch = vnodes[startIdx]; // text nodes do not have logic associated to them
+
+    if (isVNode(ch)) {
+      ch.hook.remove(ch, parentElm);
+    }
+  }
+}
+function updateDynamicChildren(parentElm, oldCh, newCh) {
+  let oldStartIdx = 0;
+  let newStartIdx = 0;
+  let oldEndIdx = oldCh.length - 1;
+  let oldStartVnode = oldCh[0];
+  let oldEndVnode = oldCh[oldEndIdx];
+  let newEndIdx = newCh.length - 1;
+  let newStartVnode = newCh[0];
+  let newEndVnode = newCh[newEndIdx];
+  let oldKeyToIdx;
+  let idxInOld;
+  let elmToMove;
+  let before;
+  while (oldStartIdx <= oldEndIdx && newStartIdx <= newEndIdx) {
+    if (!isVNode(oldStartVnode)) {
+      oldStartVnode = oldCh[++oldStartIdx]; // Vnode might have been moved left
+    } else if (!isVNode(oldEndVnode)) {
+      oldEndVnode = oldCh[--oldEndIdx];
+    } else if (!isVNode(newStartVnode)) {
+      newStartVnode = newCh[++newStartIdx];
+    } else if (!isVNode(newEndVnode)) {
+      newEndVnode = newCh[--newEndIdx];
+    } else if (sameVnode(oldStartVnode, newStartVnode)) {
+      patchVnode(oldStartVnode, newStartVnode);
+      oldStartVnode = oldCh[++oldStartIdx];
+      newStartVnode = newCh[++newStartIdx];
+    } else if (sameVnode(oldEndVnode, newEndVnode)) {
+      patchVnode(oldEndVnode, newEndVnode);
+      oldEndVnode = oldCh[--oldEndIdx];
+      newEndVnode = newCh[--newEndIdx];
+    } else if (sameVnode(oldStartVnode, newEndVnode)) {
+      // Vnode moved right
+      patchVnode(oldStartVnode, newEndVnode);
+      newEndVnode.hook.move(oldStartVnode, parentElm, oldEndVnode.owner.renderer.nextSibling(oldEndVnode.elm));
+      oldStartVnode = oldCh[++oldStartIdx];
+      newEndVnode = newCh[--newEndIdx];
+    } else if (sameVnode(oldEndVnode, newStartVnode)) {
+      // Vnode moved left
+      patchVnode(oldEndVnode, newStartVnode);
+      newStartVnode.hook.move(oldEndVnode, parentElm, oldStartVnode.elm);
+      oldEndVnode = oldCh[--oldEndIdx];
+      newStartVnode = newCh[++newStartIdx];
+    } else {
+      if (oldKeyToIdx === undefined) {
+        oldKeyToIdx = createKeyToOldIdx(oldCh, oldStartIdx, oldEndIdx);
+      }
+      idxInOld = oldKeyToIdx[newStartVnode.key];
+      if (isUndef(idxInOld)) {
+        // New element
+        newStartVnode.hook.create(newStartVnode);
+        newStartVnode.hook.insert(newStartVnode, parentElm, oldStartVnode.elm);
+        newStartVnode = newCh[++newStartIdx];
+      } else {
+        elmToMove = oldCh[idxInOld];
+        if (isVNode(elmToMove)) {
+          if (elmToMove.sel !== newStartVnode.sel) {
+            // New element
+            newStartVnode.hook.create(newStartVnode);
+            newStartVnode.hook.insert(newStartVnode, parentElm, oldStartVnode.elm);
+          } else {
+            patchVnode(elmToMove, newStartVnode);
+            oldCh[idxInOld] = undefined;
+            newStartVnode.hook.move(elmToMove, parentElm, oldStartVnode.elm);
+          }
+        }
+        newStartVnode = newCh[++newStartIdx];
+      }
+    }
+  }
+  if (oldStartIdx <= oldEndIdx || newStartIdx <= newEndIdx) {
+    if (oldStartIdx > oldEndIdx) {
+      const n = newCh[newEndIdx + 1];
+      before = isVNode(n) ? n.elm : null;
+      addVnodes(parentElm, before, newCh, newStartIdx, newEndIdx);
+    } else {
+      removeVnodes(parentElm, oldCh, oldStartIdx, oldEndIdx);
+    }
+  }
+}
+function updateStaticChildren(parentElm, oldCh, newCh) {
+  const {
+    length
+  } = newCh;
+  if (oldCh.length === 0) {
+    // the old list is empty, we can directly insert anything new
+    addVnodes(parentElm, null, newCh, 0, length);
+    return;
+  } // if the old list is not empty, the new list MUST have the same
+  // amount of nodes, that's why we call this static children
+
+  let referenceElm = null;
+  for (let i = length - 1; i >= 0; i -= 1) {
+    const vnode = newCh[i];
+    const oldVNode = oldCh[i];
+    if (vnode !== oldVNode) {
+      if (isVNode(oldVNode)) {
+        if (isVNode(vnode)) {
+          // both vnodes must be equivalent, and se just need to patch them
+          patchVnode(oldVNode, vnode);
+          referenceElm = vnode.elm;
+        } else {
+          // removing the old vnode since the new one is null
+          oldVNode.hook.remove(oldVNode, parentElm);
+        }
+      } else if (isVNode(vnode)) {
+        // this condition is unnecessary
+        vnode.hook.create(vnode); // insert the new node one since the old one is null
+
+        vnode.hook.insert(vnode, parentElm, referenceElm);
+        referenceElm = vnode.elm;
+      }
+    }
+  }
+}
+function patchVnode(oldVnode, vnode) {
+  if (oldVnode !== vnode) {
+    vnode.elm = oldVnode.elm;
+    vnode.hook.update(oldVnode, vnode);
+  }
+}
+
+/*
+ * Copyright (c) 2018, salesforce.com, inc.
+ * All rights reserved.
+ * SPDX-License-Identifier: MIT
+ * For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/MIT
+ */
+
 function generateDataDescriptor(options) {
-  return assign({
+  return assign$1({
     configurable: true,
     enumerable: true,
     writable: true
   }, options);
 }
 function generateAccessorDescriptor(options) {
-  return assign({
+  return assign$1({
     configurable: true,
     enumerable: true
   }, options);
@@ -940,9 +1534,9 @@ function patchElementWithRestrictions(elm, options) {
         throw new TypeError(`Invalid attempt to set outerHTML on Element.`);
       }
     })
-  };
-  // Apply extra restriction related to DOM manipulation if the element is not a portal.
-  if (!options.isLight && options.isSynthetic && !options.isPortal) {
+  }; // Apply extra restriction related to DOM manipulation if the element is not a portal.
+
+  if (isFalse$1$1(options.isPortal)) {
     const {
       appendChild,
       insertBefore,
@@ -952,7 +1546,7 @@ function patchElementWithRestrictions(elm, options) {
     const originalNodeValueDescriptor = getPropertyDescriptor(elm, 'nodeValue');
     const originalInnerHTMLDescriptor = getPropertyDescriptor(elm, 'innerHTML');
     const originalTextContentDescriptor = getPropertyDescriptor(elm, 'textContent');
-    assign(descriptors, {
+    assign$1(descriptors, {
       appendChild: generateDataDescriptor({
         value(aChild) {
           logMissingPortalError('appendChild', 'method');
@@ -1012,16 +1606,17 @@ function patchElementWithRestrictions(elm, options) {
       })
     });
   }
-  defineProperties(elm, descriptors);
+  defineProperties$1(elm, descriptors);
 }
+const BLOCKED_SHADOW_ROOT_METHODS = ['cloneNode', 'getElementById', 'getSelection', 'elementsFromPoint', 'dispatchEvent'];
 function getShadowRootRestrictionsDescriptors(sr) {
-  // Disallowing properties in dev mode only to avoid people doing the wrong
   // thing when using the real shadow root, because if that's the case,
   // the component will not work when running with synthetic shadow.
+
   const originalAddEventListener = sr.addEventListener;
   const originalInnerHTMLDescriptor = getPropertyDescriptor(sr, 'innerHTML');
   const originalTextContentDescriptor = getPropertyDescriptor(sr, 'textContent');
-  return {
+  const descriptors = {
     innerHTML: generateAccessorDescriptor({
       get() {
         return originalInnerHTMLDescriptor.get.call(this);
@@ -1043,17 +1638,25 @@ function getShadowRootRestrictionsDescriptors(sr) {
         // TODO [#420]: this is triggered when the component author attempts to add a listener
         // programmatically into its Component's shadow root
         if (!isUndefined$1(options)) {
-          logError('The `addEventListener` method on ShadowRoot does not support any options.', getAssociatedVMIfPresent(this));
-        }
-        // Typescript does not like it when you treat the `arguments` object as an array
+          logError('The `addEventListener` method in `LightningElement` does not support any options.', getAssociatedVMIfPresent(this));
+        } // Typescript does not like it when you treat the `arguments` object as an array
         // @ts-ignore type-mismatch
+
         return originalAddEventListener.apply(this, arguments);
       }
     })
   };
-}
-// Custom Elements Restrictions:
+  forEach$1.call(BLOCKED_SHADOW_ROOT_METHODS, methodName => {
+    descriptors[methodName] = generateAccessorDescriptor({
+      get() {
+        throw new Error(`Disallowed method "${methodName}" in ShadowRoot.`);
+      }
+    });
+  });
+  return descriptors;
+} // Custom Elements Restrictions:
 // -----------------------------
+
 function getCustomElementRestrictionsDescriptors(elm) {
   const originalAddEventListener = elm.addEventListener;
   const originalInnerHTMLDescriptor = getPropertyDescriptor(elm, 'innerHTML');
@@ -1090,9 +1693,9 @@ function getCustomElementRestrictionsDescriptors(elm) {
         // programmatically into a lighting element node
         if (!isUndefined$1(options)) {
           logError('The `addEventListener` method in `LightningElement` does not support any options.', getAssociatedVMIfPresent(this));
-        }
-        // Typescript does not like it when you treat the `arguments` object as an array
+        } // Typescript does not like it when you treat the `arguments` object as an array
         // @ts-ignore type-mismatch
+
         return originalAddEventListener.apply(this, arguments);
       }
     })
@@ -1105,32 +1708,31 @@ function getComponentRestrictionsDescriptors() {
         throw new Error(`Usage of property \`tagName\` is disallowed because the component itself does` + ` not know which tagName will be used to create the element, therefore writing` + ` code that check for that value is error prone.`);
       },
       configurable: true,
-      enumerable: false // no enumerable properties on component
+      enumerable: false
     })
   };
 }
-
 function getLightningElementPrototypeRestrictionsDescriptors(proto) {
   const originalDispatchEvent = proto.dispatchEvent;
   const descriptors = {
     dispatchEvent: generateDataDescriptor({
       value(event) {
         const vm = getAssociatedVM(this);
-        if (!isNull(event) && isObject(event)) {
+        if (!isNull$1(event) && isObject$2(event)) {
           const {
             type
           } = event;
           if (!/^[a-z][a-z0-9_]*$/.test(type)) {
             logError(`Invalid event type "${type}" dispatched in element ${getComponentTag(vm)}.` + ` Event name must start with a lowercase letter and followed only lowercase` + ` letters, numbers, and underscores`, vm);
           }
-        }
-        // Typescript does not like it when you treat the `arguments` object as an array
+        } // Typescript does not like it when you treat the `arguments` object as an array
         // @ts-ignore type-mismatch
+
         return originalDispatchEvent.apply(this, arguments);
       }
     })
   };
-  forEach.call(getOwnPropertyNames$1(globalHTMLProperties), propName => {
+  forEach$1.call(getOwnPropertyNames$1(globalHTMLProperties), propName => {
     if (propName in proto) {
       return; // no need to redefine something that we are already exposing
     }
@@ -1161,649 +1763,34 @@ function getLightningElementPrototypeRestrictionsDescriptors(proto) {
     });
   });
   return descriptors;
-}
-// This routine will prevent access to certain properties on a shadow root instance to guarantee
+} // This routine will prevent access to certain properties on a shadow root instance to guarantee
 // that all components will work fine in IE11 and other browsers without shadow dom support.
+
 function patchShadowRootWithRestrictions(sr) {
-  defineProperties(sr, getShadowRootRestrictionsDescriptors(sr));
+  defineProperties$1(sr, getShadowRootRestrictionsDescriptors(sr));
 }
 function patchCustomElementWithRestrictions(elm) {
   const restrictionsDescriptors = getCustomElementRestrictionsDescriptors(elm);
   const elmProto = getPrototypeOf$1(elm);
-  setPrototypeOf(elm, create(elmProto, restrictionsDescriptors));
+  setPrototypeOf$1(elm, create$1(elmProto, restrictionsDescriptors));
 }
 function patchComponentWithRestrictions(cmp) {
-  defineProperties(cmp, getComponentRestrictionsDescriptors());
+  defineProperties$1(cmp, getComponentRestrictionsDescriptors());
 }
 function patchLightningElementPrototypeWithRestrictions(proto) {
-  defineProperties(proto, getLightningElementPrototypeRestrictionsDescriptors(proto));
-}
-function updateComponentValue(vm, key, newValue) {
-  const {
-    cmpFields
-  } = vm;
-  if (newValue !== cmpFields[key]) {
-    cmpFields[key] = newValue;
-    componentValueMutated(vm, key);
-  }
+  defineProperties$1(proto, getLightningElementPrototypeRestrictionsDescriptors(proto));
 }
 
-/**
- * Copyright (C) 2017 salesforce.com, inc.
+/*
+ * Copyright (c) 2020, salesforce.com, inc.
+ * All rights reserved.
+ * SPDX-License-Identifier: MIT
+ * For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/MIT
  */
-const {
-  isArray
-} = Array;
-const {
-  prototype: ObjectDotPrototype,
-  getPrototypeOf,
-  create: ObjectCreate,
-  defineProperty: ObjectDefineProperty,
-  isExtensible,
-  getOwnPropertyDescriptor,
-  getOwnPropertyNames,
-  getOwnPropertySymbols,
-  preventExtensions,
-  hasOwnProperty
-} = Object;
-const {
-  push: ArrayPush,
-  concat: ArrayConcat
-} = Array.prototype;
-const OtS = {}.toString;
-function toString(obj) {
-  if (obj && obj.toString) {
-    return obj.toString();
-  } else if (typeof obj === 'object') {
-    return OtS.call(obj);
-  } else {
-    return obj + '';
-  }
-}
-function isUndefined(obj) {
-  return obj === undefined;
-}
-function isFunction(obj) {
-  return typeof obj === 'function';
-}
-const proxyToValueMap = new WeakMap();
-function registerProxy(proxy, value) {
-  proxyToValueMap.set(proxy, value);
-}
-const unwrap$1 = replicaOrAny => proxyToValueMap.get(replicaOrAny) || replicaOrAny;
-class BaseProxyHandler {
-  constructor(membrane, value) {
-    this.originalTarget = value;
-    this.membrane = membrane;
-  }
-  // Shared utility methods
-  wrapDescriptor(descriptor) {
-    if (hasOwnProperty.call(descriptor, 'value')) {
-      descriptor.value = this.wrapValue(descriptor.value);
-    } else {
-      const {
-        set: originalSet,
-        get: originalGet
-      } = descriptor;
-      if (!isUndefined(originalGet)) {
-        descriptor.get = this.wrapGetter(originalGet);
-      }
-      if (!isUndefined(originalSet)) {
-        descriptor.set = this.wrapSetter(originalSet);
-      }
-    }
-    return descriptor;
-  }
-  copyDescriptorIntoShadowTarget(shadowTarget, key) {
-    const {
-      originalTarget
-    } = this;
-    // Note: a property might get defined multiple times in the shadowTarget
-    //       but it will always be compatible with the previous descriptor
-    //       to preserve the object invariants, which makes these lines safe.
-    const originalDescriptor = getOwnPropertyDescriptor(originalTarget, key);
-    // TODO: it should be impossible for the originalDescriptor to ever be undefined, this `if` can be removed
-    /* istanbul ignore else */
-    if (!isUndefined(originalDescriptor)) {
-      const wrappedDesc = this.wrapDescriptor(originalDescriptor);
-      ObjectDefineProperty(shadowTarget, key, wrappedDesc);
-    }
-  }
-  lockShadowTarget(shadowTarget) {
-    const {
-      originalTarget
-    } = this;
-    const targetKeys = ArrayConcat.call(getOwnPropertyNames(originalTarget), getOwnPropertySymbols(originalTarget));
-    targetKeys.forEach(key => {
-      this.copyDescriptorIntoShadowTarget(shadowTarget, key);
-    });
-    const {
-      membrane: {
-        tagPropertyKey
-      }
-    } = this;
-    if (!isUndefined(tagPropertyKey) && !hasOwnProperty.call(shadowTarget, tagPropertyKey)) {
-      ObjectDefineProperty(shadowTarget, tagPropertyKey, ObjectCreate(null));
-    }
-    preventExtensions(shadowTarget);
-  }
-  // Shared Traps
-  // TODO: apply() is never called
-  /* istanbul ignore next */
-  apply(shadowTarget, thisArg, argArray) {
-    /* No op */
-  }
-  // TODO: construct() is never called
-  /* istanbul ignore next */
-  construct(shadowTarget, argArray, newTarget) {
-    /* No op */
-  }
-  get(shadowTarget, key) {
-    const {
-      originalTarget,
-      membrane: {
-        valueObserved
-      }
-    } = this;
-    const value = originalTarget[key];
-    valueObserved(originalTarget, key);
-    return this.wrapValue(value);
-  }
-  has(shadowTarget, key) {
-    const {
-      originalTarget,
-      membrane: {
-        tagPropertyKey,
-        valueObserved
-      }
-    } = this;
-    valueObserved(originalTarget, key);
-    // since key is never going to be undefined, and tagPropertyKey might be undefined
-    // we can simply compare them as the second part of the condition.
-    return key in originalTarget || key === tagPropertyKey;
-  }
-  ownKeys(shadowTarget) {
-    const {
-      originalTarget,
-      membrane: {
-        tagPropertyKey
-      }
-    } = this;
-    // if the membrane tag key exists and it is not in the original target, we add it to the keys.
-    const keys = isUndefined(tagPropertyKey) || hasOwnProperty.call(originalTarget, tagPropertyKey) ? [] : [tagPropertyKey];
-    // small perf optimization using push instead of concat to avoid creating an extra array
-    ArrayPush.apply(keys, getOwnPropertyNames(originalTarget));
-    ArrayPush.apply(keys, getOwnPropertySymbols(originalTarget));
-    return keys;
-  }
-  isExtensible(shadowTarget) {
-    const {
-      originalTarget
-    } = this;
-    // optimization to avoid attempting to lock down the shadowTarget multiple times
-    if (!isExtensible(shadowTarget)) {
-      return false; // was already locked down
-    }
-
-    if (!isExtensible(originalTarget)) {
-      this.lockShadowTarget(shadowTarget);
-      return false;
-    }
-    return true;
-  }
-  getPrototypeOf(shadowTarget) {
-    const {
-      originalTarget
-    } = this;
-    return getPrototypeOf(originalTarget);
-  }
-  getOwnPropertyDescriptor(shadowTarget, key) {
-    const {
-      originalTarget,
-      membrane: {
-        valueObserved,
-        tagPropertyKey
-      }
-    } = this;
-    // keys looked up via getOwnPropertyDescriptor need to be reactive
-    valueObserved(originalTarget, key);
-    let desc = getOwnPropertyDescriptor(originalTarget, key);
-    if (isUndefined(desc)) {
-      if (key !== tagPropertyKey) {
-        return undefined;
-      }
-      // if the key is the membrane tag key, and is not in the original target,
-      // we produce a synthetic descriptor and install it on the shadow target
-      desc = {
-        value: undefined,
-        writable: false,
-        configurable: false,
-        enumerable: false
-      };
-      ObjectDefineProperty(shadowTarget, tagPropertyKey, desc);
-      return desc;
-    }
-    if (desc.configurable === false) {
-      // updating the descriptor to non-configurable on the shadow
-      this.copyDescriptorIntoShadowTarget(shadowTarget, key);
-    }
-    // Note: by accessing the descriptor, the key is marked as observed
-    // but access to the value, setter or getter (if available) cannot observe
-    // mutations, just like regular methods, in which case we just do nothing.
-    return this.wrapDescriptor(desc);
-  }
-}
-const getterMap$1 = new WeakMap();
-const setterMap$1 = new WeakMap();
-const reverseGetterMap = new WeakMap();
-const reverseSetterMap = new WeakMap();
-class ReactiveProxyHandler extends BaseProxyHandler {
-  wrapValue(value) {
-    return this.membrane.getProxy(value);
-  }
-  wrapGetter(originalGet) {
-    const wrappedGetter = getterMap$1.get(originalGet);
-    if (!isUndefined(wrappedGetter)) {
-      return wrappedGetter;
-    }
-    const handler = this;
-    const get = function () {
-      // invoking the original getter with the original target
-      return handler.wrapValue(originalGet.call(unwrap$1(this)));
-    };
-    getterMap$1.set(originalGet, get);
-    reverseGetterMap.set(get, originalGet);
-    return get;
-  }
-  wrapSetter(originalSet) {
-    const wrappedSetter = setterMap$1.get(originalSet);
-    if (!isUndefined(wrappedSetter)) {
-      return wrappedSetter;
-    }
-    const set = function (v) {
-      // invoking the original setter with the original target
-      originalSet.call(unwrap$1(this), unwrap$1(v));
-    };
-    setterMap$1.set(originalSet, set);
-    reverseSetterMap.set(set, originalSet);
-    return set;
-  }
-  unwrapDescriptor(descriptor) {
-    if (hasOwnProperty.call(descriptor, 'value')) {
-      // dealing with a data descriptor
-      descriptor.value = unwrap$1(descriptor.value);
-    } else {
-      const {
-        set,
-        get
-      } = descriptor;
-      if (!isUndefined(get)) {
-        descriptor.get = this.unwrapGetter(get);
-      }
-      if (!isUndefined(set)) {
-        descriptor.set = this.unwrapSetter(set);
-      }
-    }
-    return descriptor;
-  }
-  unwrapGetter(redGet) {
-    const reverseGetter = reverseGetterMap.get(redGet);
-    if (!isUndefined(reverseGetter)) {
-      return reverseGetter;
-    }
-    const handler = this;
-    const get = function () {
-      // invoking the red getter with the proxy of this
-      return unwrap$1(redGet.call(handler.wrapValue(this)));
-    };
-    getterMap$1.set(get, redGet);
-    reverseGetterMap.set(redGet, get);
-    return get;
-  }
-  unwrapSetter(redSet) {
-    const reverseSetter = reverseSetterMap.get(redSet);
-    if (!isUndefined(reverseSetter)) {
-      return reverseSetter;
-    }
-    const handler = this;
-    const set = function (v) {
-      // invoking the red setter with the proxy of this
-      redSet.call(handler.wrapValue(this), handler.wrapValue(v));
-    };
-    setterMap$1.set(set, redSet);
-    reverseSetterMap.set(redSet, set);
-    return set;
-  }
-  set(shadowTarget, key, value) {
-    const {
-      originalTarget,
-      membrane: {
-        valueMutated
-      }
-    } = this;
-    const oldValue = originalTarget[key];
-    if (oldValue !== value) {
-      originalTarget[key] = value;
-      valueMutated(originalTarget, key);
-    } else if (key === 'length' && isArray(originalTarget)) {
-      // fix for issue #236: push will add the new index, and by the time length
-      // is updated, the internal length is already equal to the new length value
-      // therefore, the oldValue is equal to the value. This is the forking logic
-      // to support this use case.
-      valueMutated(originalTarget, key);
-    }
-    return true;
-  }
-  deleteProperty(shadowTarget, key) {
-    const {
-      originalTarget,
-      membrane: {
-        valueMutated
-      }
-    } = this;
-    delete originalTarget[key];
-    valueMutated(originalTarget, key);
-    return true;
-  }
-  setPrototypeOf(shadowTarget, prototype) {
-    /* istanbul ignore else */
-    {
-      throw new Error(`Invalid setPrototypeOf invocation for reactive proxy ${toString(this.originalTarget)}. Prototype of reactive objects cannot be changed.`);
-    }
-  }
-  preventExtensions(shadowTarget) {
-    if (isExtensible(shadowTarget)) {
-      const {
-        originalTarget
-      } = this;
-      preventExtensions(originalTarget);
-      // if the originalTarget is a proxy itself, it might reject
-      // the preventExtension call, in which case we should not attempt to lock down
-      // the shadow target.
-      // TODO: It should not actually be possible to reach this `if` statement.
-      // If a proxy rejects extensions, then calling preventExtensions will throw an error:
-      // https://codepen.io/nolanlawson-the-selector/pen/QWMOjbY
-      /* istanbul ignore if */
-      if (isExtensible(originalTarget)) {
-        return false;
-      }
-      this.lockShadowTarget(shadowTarget);
-    }
-    return true;
-  }
-  defineProperty(shadowTarget, key, descriptor) {
-    const {
-      originalTarget,
-      membrane: {
-        valueMutated,
-        tagPropertyKey
-      }
-    } = this;
-    if (key === tagPropertyKey && !hasOwnProperty.call(originalTarget, key)) {
-      // To avoid leaking the membrane tag property into the original target, we must
-      // be sure that the original target doesn't have yet.
-      // NOTE: we do not return false here because Object.freeze and equivalent operations
-      // will attempt to set the descriptor to the same value, and expect no to throw. This
-      // is an small compromise for the sake of not having to diff the descriptors.
-      return true;
-    }
-    ObjectDefineProperty(originalTarget, key, this.unwrapDescriptor(descriptor));
-    // intentionally testing if false since it could be undefined as well
-    if (descriptor.configurable === false) {
-      this.copyDescriptorIntoShadowTarget(shadowTarget, key);
-    }
-    valueMutated(originalTarget, key);
-    return true;
-  }
-  /*LWC compiler v2.32.1*/
-}
-const getterMap = new WeakMap();
-const setterMap = new WeakMap();
-class ReadOnlyHandler extends BaseProxyHandler {
-  wrapValue(value) {
-    return this.membrane.getReadOnlyProxy(value);
-  }
-  wrapGetter(originalGet) {
-    const wrappedGetter = getterMap.get(originalGet);
-    if (!isUndefined(wrappedGetter)) {
-      return wrappedGetter;
-    }
-    const handler = this;
-    const get = function () {
-      // invoking the original getter with the original target
-      return handler.wrapValue(originalGet.call(unwrap$1(this)));
-    };
-    getterMap.set(originalGet, get);
-    return get;
-  }
-  wrapSetter(originalSet) {
-    const wrappedSetter = setterMap.get(originalSet);
-    if (!isUndefined(wrappedSetter)) {
-      return wrappedSetter;
-    }
-    const handler = this;
-    const set = function (v) {
-      /* istanbul ignore else */
-      {
-        const {
-          originalTarget
-        } = handler;
-        throw new Error(`Invalid mutation: Cannot invoke a setter on "${originalTarget}". "${originalTarget}" is read-only.`);
-      }
-    };
-    setterMap.set(originalSet, set);
-    return set;
-  }
-  set(shadowTarget, key, value) {
-    /* istanbul ignore else */
-    {
-      const {
-        originalTarget
-      } = this;
-      const msg = isArray(originalTarget) ? `Invalid mutation: Cannot mutate array at index ${key.toString()}. Array is read-only.` : `Invalid mutation: Cannot set "${key.toString()}" on "${originalTarget}". "${originalTarget}" is read-only.`;
-      throw new Error(msg);
-    }
-  }
-  deleteProperty(shadowTarget, key) {
-    /* istanbul ignore else */
-    {
-      const {
-        originalTarget
-      } = this;
-      throw new Error(`Invalid mutation: Cannot delete "${key.toString()}" on "${originalTarget}". "${originalTarget}" is read-only.`);
-    }
-  }
-  setPrototypeOf(shadowTarget, prototype) {
-    /* istanbul ignore else */
-    {
-      const {
-        originalTarget
-      } = this;
-      throw new Error(`Invalid prototype mutation: Cannot set prototype on "${originalTarget}". "${originalTarget}" prototype is read-only.`);
-    }
-  }
-  preventExtensions(shadowTarget) {
-    /* istanbul ignore else */
-    {
-      const {
-        originalTarget
-      } = this;
-      throw new Error(`Invalid mutation: Cannot preventExtensions on ${originalTarget}". "${originalTarget} is read-only.`);
-    }
-  }
-  defineProperty(shadowTarget, key, descriptor) {
-    /* istanbul ignore else */
-    {
-      const {
-        originalTarget
-      } = this;
-      throw new Error(`Invalid mutation: Cannot defineProperty "${key.toString()}" on "${originalTarget}". "${originalTarget}" is read-only.`);
-    }
-  }
-  /*LWC compiler v2.32.1*/
-}
-function extract(objectOrArray) {
-  if (isArray(objectOrArray)) {
-    return objectOrArray.map(item => {
-      const original = unwrap$1(item);
-      if (original !== item) {
-        return extract(original);
-      }
-      return item;
-    });
-  }
-  const obj = ObjectCreate(getPrototypeOf(objectOrArray));
-  const names = getOwnPropertyNames(objectOrArray);
-  return ArrayConcat.call(names, getOwnPropertySymbols(objectOrArray)).reduce((seed, key) => {
-    const item = objectOrArray[key];
-    const original = unwrap$1(item);
-    if (original !== item) {
-      seed[key] = extract(original);
-    } else {
-      seed[key] = item;
-    }
-    return seed;
-  }, obj);
-}
-const formatter = {
-  header: plainOrProxy => {
-    const originalTarget = unwrap$1(plainOrProxy);
-    // if originalTarget is falsy or not unwrappable, exit
-    if (!originalTarget || originalTarget === plainOrProxy) {
-      return null;
-    }
-    const obj = extract(plainOrProxy);
-    return ['object', {
-      object: obj
-    }];
-  },
-  hasBody: () => {
-    return false;
-  },
-  body: () => {
-    return null;
-  }
-};
-// Inspired from paulmillr/es6-shim
-// https://github.com/paulmillr/es6-shim/blob/master/es6-shim.js#L176-L185
-/* istanbul ignore next */
-function getGlobal() {
-  // the only reliable means to get the global object is `Function('return this')()`
-  // However, this causes CSP violations in Chrome apps.
-  if (typeof globalThis !== 'undefined') {
-    return globalThis;
-  }
-  if (typeof self !== 'undefined') {
-    return self;
-  }
-  if (typeof window !== 'undefined') {
-    return window;
-  }
-  if (typeof global !== 'undefined') {
-    return global;
-  }
-  // Gracefully degrade if not able to locate the global object
-  return {};
-}
-function init$1() {
-  const global = getGlobal();
-  // Custom Formatter for Dev Tools. To enable this, open Chrome Dev Tools
-  //  - Go to Settings,
-  //  - Under console, select "Enable custom formatters"
-  // For more information, https://docs.google.com/document/d/1FTascZXT9cxfetuPRT2eXPQKXui4nWFivUnS_335T3U/preview
-  const devtoolsFormatters = global.devtoolsFormatters || [];
-  ArrayPush.call(devtoolsFormatters, formatter);
-  global.devtoolsFormatters = devtoolsFormatters;
-}
-
-/* istanbul ignore else */
-{
-  init$1();
-}
-function defaultValueIsObservable(value) {
-  // intentionally checking for null
-  if (value === null) {
-    return false;
-  }
-  // treat all non-object types, including undefined, as non-observable values
-  if (typeof value !== 'object') {
-    return false;
-  }
-  if (isArray(value)) {
-    return true;
-  }
-  const proto = getPrototypeOf(value);
-  return proto === ObjectDotPrototype || proto === null || getPrototypeOf(proto) === null;
-}
-const defaultValueObserved = (obj, key) => {
-  /* do nothing */
-};
-const defaultValueMutated = (obj, key) => {
-  /* do nothing */
-};
-function createShadowTarget(value) {
-  return isArray(value) ? [] : {};
-}
-class ObservableMembrane {
-  constructor(options = {}) {
-    this.readOnlyObjectGraph = new WeakMap();
-    this.reactiveObjectGraph = new WeakMap();
-    const {
-      valueMutated,
-      valueObserved,
-      valueIsObservable,
-      tagPropertyKey
-    } = options;
-    this.valueMutated = isFunction(valueMutated) ? valueMutated : defaultValueMutated;
-    this.valueObserved = isFunction(valueObserved) ? valueObserved : defaultValueObserved;
-    this.valueIsObservable = isFunction(valueIsObservable) ? valueIsObservable : defaultValueIsObservable;
-    this.tagPropertyKey = tagPropertyKey;
-  }
-  getProxy(value) {
-    const unwrappedValue = unwrap$1(value);
-    if (this.valueIsObservable(unwrappedValue)) {
-      // When trying to extract the writable version of a readonly we return the readonly.
-      if (this.readOnlyObjectGraph.get(unwrappedValue) === value) {
-        return value;
-      }
-      return this.getReactiveHandler(unwrappedValue);
-    }
-    return unwrappedValue;
-  }
-  getReadOnlyProxy(value) {
-    value = unwrap$1(value);
-    if (this.valueIsObservable(value)) {
-      return this.getReadOnlyHandler(value);
-    }
-    return value;
-  }
-  unwrapProxy(p) {
-    return unwrap$1(p);
-  }
-  getReactiveHandler(value) {
-    let proxy = this.reactiveObjectGraph.get(value);
-    if (isUndefined(proxy)) {
-      // caching the proxy after the first time it is accessed
-      const handler = new ReactiveProxyHandler(this, value);
-      proxy = new Proxy(createShadowTarget(value), handler);
-      registerProxy(proxy, value);
-      this.reactiveObjectGraph.set(value, proxy);
-    }
-    return proxy;
-  }
-  getReadOnlyHandler(value) {
-    let proxy = this.readOnlyObjectGraph.get(value);
-    if (isUndefined(proxy)) {
-      // caching the proxy after the first time it is accessed
-      const handler = new ReadOnlyHandler(this, value);
-      proxy = new Proxy(createShadowTarget(value), handler);
-      registerProxy(proxy, value);
-      this.readOnlyObjectGraph.set(value, proxy);
-    }
-    return proxy;
-  }
-}
-/** version: 2.0.0 */
+// This is a temporary workaround to get the @lwc/engine-server to evaluate in node without having
+// to inject at runtime.
+const HTMLElementConstructor = typeof HTMLElement !== 'undefined' ? HTMLElement : function () {};
+const HTMLElementPrototype = HTMLElementConstructor.prototype;
 
 /*
  * Copyright (c) 2018, salesforce.com, inc.
@@ -1811,28 +1798,31 @@ class ObservableMembrane {
  * SPDX-License-Identifier: MIT
  * For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/MIT
  */
-const lockerLivePropertyKey = Symbol.for('@@lockerLiveValue');
-const reactiveMembrane = new ObservableMembrane({
-  valueObserved,
-  valueMutated,
-  tagPropertyKey: lockerLivePropertyKey
-});
-function getReadOnlyProxy(value) {
-  // We must return a frozen wrapper around the value, so that child components cannot mutate properties passed to
-  // them from their parents. This applies to both the client and server.
-  return reactiveMembrane.getReadOnlyProxy(value);
-}
-function getReactiveProxy(value) {
-  // On the server side, we don't need mutation tracking. Skipping it improves performance.
-  return reactiveMembrane.getProxy(value);
-}
-// Making the component instance a live value when using Locker to support expandos.
-function markLockerLiveObject(obj) {
-  // On the server side, we don't need mutation tracking. Skipping it improves performance.
-  {
-    obj[lockerLivePropertyKey] = undefined;
+/**
+ * This is a descriptor map that contains
+ * all standard properties that a Custom Element can support (including AOM properties), which
+ * determines what kind of capabilities the Base HTML Element and
+ * Base Lightning Element should support.
+ */
+
+const HTMLElementOriginalDescriptors = create$1(null);
+forEach$1.call(keys$1(PropNameToAttrNameMap$1), propName => {
+  // Note: intentionally using our in-house getPropertyDescriptor instead of getOwnPropertyDescriptor here because
+  // in IE11, some properties are on Element.prototype instead of HTMLElement, just to be sure.
+  const descriptor = getPropertyDescriptor(HTMLElementPrototype, propName);
+  if (!isUndefined$1(descriptor)) {
+    HTMLElementOriginalDescriptors[propName] = descriptor;
   }
-}
+});
+forEach$1.call(defaultDefHTMLPropertyNames, propName => {
+  // Note: intentionally using our in-house getPropertyDescriptor instead of getOwnPropertyDescriptor here because
+  // in IE11, id property is on Element.prototype instead of HTMLElement, and we suspect that more will fall into
+  // this category, so, better to be sure.
+  const descriptor = getPropertyDescriptor(HTMLElementPrototype, propName);
+  if (!isUndefined$1(descriptor)) {
+    HTMLElementOriginalDescriptors[propName] = descriptor;
+  }
+});
 
 /*
  * Copyright (c) 2018, salesforce.com, inc.
@@ -1846,6 +1836,7 @@ function markLockerLiveObject(obj) {
  * determines what kind of capabilities the Base Lightning Element should support. When producing the new descriptors
  * for the Base Lightning Element, it also include the reactivity bit, so the standard property is reactive.
  */
+
 function createBridgeToElementDescriptor(propName, descriptor) {
   const {
     get,
@@ -1855,13 +1846,13 @@ function createBridgeToElementDescriptor(propName, descriptor) {
   } = descriptor;
   if (!isFunction$1(get)) {
     {
-      assert.fail(`Detected invalid public property descriptor for HTMLElement.prototype.${propName} definition. Missing the standard getter.`);
+      assert$1.fail(`Detected invalid public property descriptor for HTMLElement.prototype.${propName} definition. Missing the standard getter.`);
     }
     throw new TypeError();
   }
   if (!isFunction$1(set)) {
     {
-      assert.fail(`Detected invalid public property descriptor for HTMLElement.prototype.${propName} definition. Missing the standard setter.`);
+      assert$1.fail(`Detected invalid public property descriptor for HTMLElement.prototype.${propName} definition. Missing the standard setter.`);
     }
     throw new TypeError();
   }
@@ -1883,51 +1874,54 @@ function createBridgeToElementDescriptor(propName, descriptor) {
       const vm = getAssociatedVM(this);
       {
         const vmBeingRendered = getVMBeingRendered();
-        assert.invariant(!isInvokingRender, `${vmBeingRendered}.render() method has side effects on the state of ${vm}.${propName}`);
-        assert.invariant(!isUpdatingTemplate, `When updating the template of ${vmBeingRendered}, one of the accessors used by the template has side effects on the state of ${vm}.${propName}`);
-        assert.isFalse(isBeingConstructed(vm), `Failed to construct '${getComponentTag(vm)}': The result must not have attributes.`);
-        assert.invariant(!isObject(newValue) || isNull(newValue), `Invalid value "${newValue}" for "${propName}" of ${vm}. Value cannot be an object, must be a primitive value.`);
+        assert$1.invariant(!isInvokingRender, `${vmBeingRendered}.render() method has side effects on the state of ${vm}.${propName}`);
+        assert$1.invariant(!isUpdatingTemplate, `When updating the template of ${vmBeingRendered}, one of the accessors used by the template has side effects on the state of ${vm}.${propName}`);
+        assert$1.isFalse(isBeingConstructed(vm), `Failed to construct '${getComponentTag(vm)}': The result must not have attributes.`);
+        assert$1.invariant(!isObject$2(newValue) || isNull$1(newValue), `Invalid value "${newValue}" for "${propName}" of ${vm}. Value cannot be an object, must be a primitive value.`);
       }
-      updateComponentValue(vm, propName, newValue);
+      if (newValue !== vm.cmpProps[propName]) {
+        vm.cmpProps[propName] = newValue;
+        componentValueMutated(vm, propName);
+      }
       return set.call(vm.elm, newValue);
     }
   };
 }
-const EMPTY_REFS = freeze(create(null));
-const refsCache = new WeakMap();
 /**
  * This class is the base class for any LWC element.
  * Some elements directly extends this class, others implement it via inheritance.
  **/
-// @ts-ignore
-const LightningElement = function () {
-  // This should be as performant as possible, while any initialization should be done lazily
-  if (isNull(vmBeingConstructed)) {
-    // Thrown when doing something like `new LightningElement()` or
-    // `class Foo extends LightningElement {}; new Foo()`
-    throw new TypeError('Illegal constructor');
+
+function BaseLightningElementConstructor() {
+  var _a; // This should be as performant as possible, while any initialization should be done lazily
+
+  if (isNull$1(vmBeingConstructed)) {
+    throw new ReferenceError('Illegal constructor');
   }
   const vm = vmBeingConstructed;
   const {
-    def,
-    elm
+    elm,
+    mode,
+    renderer,
+    def: {
+      ctor
+    }
   } = vm;
-  const {
-    bridge
-  } = def;
   {
-    const {
-      assertInstanceOfHTMLElement
-    } = vm.renderer;
-    assertInstanceOfHTMLElement(vm.elm, `Component creation requires a DOM element to be associated to ${vm}.`);
+    (_a = renderer.assertInstanceOfHTMLElement) === null || _a === void 0 ? void 0 : _a.call(renderer, vm.elm, `Component creation requires a DOM element to be associated to ${vm}.`);
   }
   const component = this;
-  setPrototypeOf(elm, bridge.prototype);
+  const cmpRoot = renderer.attachShadow(elm, {
+    mode,
+    delegatesFocus: !!ctor.delegatesFocus,
+    '$$lwc-synthetic-mode$$': true
+  });
   vm.component = this;
-  // Locker hooks assignment. When the LWC engine run with Locker, Locker intercepts all the new
+  vm.cmpRoot = cmpRoot; // Locker hooks assignment. When the LWC engine run with Locker, Locker intercepts all the new
   // component creation and passes hooks to instrument all the component interactions with the
   // engine. We are intentionally hiding this argument from the formal API of LightningElement
   // because we don't want folks to know about it just yet.
+
   if (arguments.length === 1) {
     const {
       callHook,
@@ -1937,63 +1931,28 @@ const LightningElement = function () {
     vm.callHook = callHook;
     vm.setHook = setHook;
     vm.getHook = getHook;
-  }
-  markLockerLiveObject(this);
-  // Linking elm, shadow root and component with the VM.
+  } // Linking elm, shadow root and component with the VM.
+
   associateVM(component, vm);
-  associateVM(elm, vm);
-  if (vm.renderMode === 1 /* RenderMode.Shadow */) {
-    vm.renderRoot = doAttachShadow(vm);
-  } else {
-    vm.renderRoot = elm;
-  }
-  // Adding extra guard rails in DEV mode.
+  associateVM(cmpRoot, vm);
+  associateVM(elm, vm); // Adding extra guard rails in DEV mode.
+
   {
     patchCustomElementWithRestrictions(elm);
     patchComponentWithRestrictions(component);
+    patchShadowRootWithRestrictions(cmpRoot);
   }
   return this;
-};
-function doAttachShadow(vm) {
-  const {
-    elm,
-    mode,
-    shadowMode,
-    def: {
-      ctor
-    },
-    renderer: {
-      attachShadow
-    }
-  } = vm;
-  const shadowRoot = attachShadow(elm, {
-    [KEY__SYNTHETIC_MODE]: shadowMode === 1 /* ShadowMode.Synthetic */,
-    delegatesFocus: Boolean(ctor.delegatesFocus),
-    mode
-  });
-  vm.shadowRoot = shadowRoot;
-  associateVM(shadowRoot, vm);
-  {
-    patchShadowRootWithRestrictions(shadowRoot);
-  }
-  return shadowRoot;
 }
-function warnIfInvokedDuringConstruction(vm, methodOrPropName) {
-  if (isBeingConstructed(vm)) {
-    logError(`this.${methodOrPropName} should not be called during the construction of the custom element for ${getComponentTag(vm)} because the element is not yet in the DOM or has no children yet.`);
-  }
-}
-// @ts-ignore
-LightningElement.prototype = {
-  constructor: LightningElement,
+BaseLightningElementConstructor.prototype = {
+  constructor: BaseLightningElementConstructor,
   dispatchEvent(event) {
-    const vm = getAssociatedVM(this);
     const {
       elm,
       renderer: {
         dispatchEvent
       }
-    } = vm;
+    } = getAssociatedVM(this);
     return dispatchEvent(elm, event);
   },
   addEventListener(type, listener, options) {
@@ -2006,9 +1965,9 @@ LightningElement.prototype = {
     } = vm;
     {
       const vmBeingRendered = getVMBeingRendered();
-      assert.invariant(!isInvokingRender, `${vmBeingRendered}.render() method has side effects on the state of ${vm} by adding an event listener for "${type}".`);
-      assert.invariant(!isUpdatingTemplate, `Updating the template of ${vmBeingRendered} has side effects on the state of ${vm} by adding an event listener for "${type}".`);
-      assert.invariant(isFunction$1(listener), `Invalid second argument for this.addEventListener() in ${vm} for event "${type}". Expected an EventListener but received ${listener}.`);
+      assert$1.invariant(!isInvokingRender, `${vmBeingRendered}.render() method has side effects on the state of ${vm} by adding an event listener for "${type}".`);
+      assert$1.invariant(!isUpdatingTemplate, `Updating the template of ${vmBeingRendered} has side effects on the state of ${vm} by adding an event listener for "${type}".`);
+      assert$1.invariant(isFunction$1(listener), `Invalid second argument for this.addEventListener() in ${vm} for event "${type}". Expected an EventListener but received ${listener}.`);
     }
     const wrappedListener = getWrappedComponentsListener(vm, listener);
     addEventListener(elm, type, wrappedListener, options);
@@ -2025,33 +1984,30 @@ LightningElement.prototype = {
     removeEventListener(elm, type, wrappedListener, options);
   },
   hasAttribute(name) {
-    const vm = getAssociatedVM(this);
     const {
       elm,
       renderer: {
         getAttribute
       }
-    } = vm;
-    return !isNull(getAttribute(elm, name));
+    } = getAssociatedVM(this);
+    return !isNull$1(getAttribute(elm, name));
   },
   hasAttributeNS(namespace, name) {
-    const vm = getAssociatedVM(this);
     const {
       elm,
       renderer: {
         getAttribute
       }
-    } = vm;
-    return !isNull(getAttribute(elm, name, namespace));
+    } = getAssociatedVM(this);
+    return !isNull$1(getAttribute(elm, name, namespace));
   },
   removeAttribute(name) {
-    const vm = getAssociatedVM(this);
     const {
       elm,
       renderer: {
         removeAttribute
       }
-    } = vm;
+    } = getAssociatedVM(this);
     unlockAttribute(elm, name);
     removeAttribute(elm, name);
     lockAttribute();
@@ -2068,23 +2024,21 @@ LightningElement.prototype = {
     lockAttribute();
   },
   getAttribute(name) {
-    const vm = getAssociatedVM(this);
     const {
-      elm
-    } = vm;
-    const {
-      getAttribute
-    } = vm.renderer;
+      elm,
+      renderer: {
+        getAttribute
+      }
+    } = getAssociatedVM(this);
     return getAttribute(elm, name);
   },
   getAttributeNS(namespace, name) {
-    const vm = getAssociatedVM(this);
     const {
-      elm
-    } = vm;
-    const {
-      getAttribute
-    } = vm.renderer;
+      elm,
+      renderer: {
+        getAttribute
+      }
+    } = getAssociatedVM(this);
     return getAttribute(elm, name, namespace);
   },
   setAttribute(name, value) {
@@ -2096,7 +2050,7 @@ LightningElement.prototype = {
       }
     } = vm;
     {
-      assert.isFalse(isBeingConstructed(vm), `Failed to construct '${getComponentTag(vm)}': The result must not have attributes.`);
+      assert$1.isFalse(isBeingConstructed(vm), `Failed to construct '${getComponentTag(vm)}': The result must not have attributes.`);
     }
     unlockAttribute(elm, name);
     setAttribute(elm, name, value);
@@ -2111,7 +2065,7 @@ LightningElement.prototype = {
       }
     } = vm;
     {
-      assert.isFalse(isBeingConstructed(vm), `Failed to construct '${getComponentTag(vm)}': The result must not have attributes.`);
+      assert$1.isFalse(isBeingConstructed(vm), `Failed to construct '${getComponentTag(vm)}': The result must not have attributes.`);
     }
     unlockAttribute(elm, name);
     setAttribute(elm, name, value, namespace);
@@ -2126,18 +2080,69 @@ LightningElement.prototype = {
       }
     } = vm;
     {
-      warnIfInvokedDuringConstruction(vm, 'getBoundingClientRect()');
+      assert$1.isFalse(isBeingConstructed(vm), `this.getBoundingClientRect() should not be called during the construction of the custom element for ${getComponentTag(vm)} because the element is not yet in the DOM, instead, you can use it in one of the available life-cycle hooks.`);
     }
     return getBoundingClientRect(elm);
   },
-  get isConnected() {
+  querySelector(selectors) {
     const vm = getAssociatedVM(this);
+    const {
+      elm,
+      renderer: {
+        querySelector
+      }
+    } = vm;
+    {
+      assert$1.isFalse(isBeingConstructed(vm), `this.querySelector() cannot be called during the construction of the custom element for ${getComponentTag(vm)} because no children has been added to this element yet.`);
+    }
+    return querySelector(elm, selectors);
+  },
+  querySelectorAll(selectors) {
+    const vm = getAssociatedVM(this);
+    const {
+      elm,
+      renderer: {
+        querySelectorAll
+      }
+    } = vm;
+    {
+      assert$1.isFalse(isBeingConstructed(vm), `this.querySelectorAll() cannot be called during the construction of the custom element for ${getComponentTag(vm)} because no children has been added to this element yet.`);
+    }
+    return querySelectorAll(elm, selectors);
+  },
+  getElementsByTagName(tagNameOrWildCard) {
+    const vm = getAssociatedVM(this);
+    const {
+      elm,
+      renderer: {
+        getElementsByTagName
+      }
+    } = vm;
+    {
+      assert$1.isFalse(isBeingConstructed(vm), `this.getElementsByTagName() cannot be called during the construction of the custom element for ${getComponentTag(vm)} because no children has been added to this element yet.`);
+    }
+    return getElementsByTagName(elm, tagNameOrWildCard);
+  },
+  getElementsByClassName(names) {
+    const vm = getAssociatedVM(this);
+    const {
+      elm,
+      renderer: {
+        getElementsByClassName
+      }
+    } = vm;
+    {
+      assert$1.isFalse(isBeingConstructed(vm), `this.getElementsByClassName() cannot be called during the construction of the custom element for ${getComponentTag(vm)} because no children has been added to this element yet.`);
+    }
+    return getElementsByClassName(elm, names);
+  },
+  get isConnected() {
     const {
       elm,
       renderer: {
         isConnected
       }
-    } = vm;
+    } = getAssociatedVM(this);
     return isConnected(elm);
   },
   get classList() {
@@ -2151,135 +2156,18 @@ LightningElement.prototype = {
     {
       // TODO [#1290]: this still fails in dev but works in production, eventually, we should
       // just throw in all modes
-      assert.isFalse(isBeingConstructed(vm), `Failed to construct ${vm}: The result must not have attributes. Adding or tampering with classname in constructor is not allowed in a web component, use connectedCallback() instead.`);
+      assert$1.isFalse(isBeingConstructed(vm), `Failed to construct ${vm}: The result must not have attributes. Adding or tampering with classname in constructor is not allowed in a web component, use connectedCallback() instead.`);
     }
     return getClassList(elm);
   },
   get template() {
     const vm = getAssociatedVM(this);
-    {
-      if (vm.renderMode === 0 /* RenderMode.Light */) {
-        logError('`this.template` returns null for light DOM components. Since there is no shadow, the rendered content can be accessed via `this` itself. e.g. instead of `this.template.querySelector`, use `this.querySelector`.');
-      }
-    }
-    return vm.shadowRoot;
-  },
-  get refs() {
-    const vm = getAssociatedVM(this);
-    if (isUpdatingTemplate) {
-      {
-        logError(`this.refs should not be called while ${getComponentTag(vm)} is rendering. Use this.refs only when the DOM is stable, e.g. in renderedCallback().`);
-      }
-      // If the template is in the process of being updated, then we don't want to go through the normal
-      // process of returning the refs and caching them, because the state of the refs is unstable.
-      // This can happen if e.g. a template contains `<div class={foo}></div>` and `foo` is computed
-      // based on `this.refs.bar`.
-      return;
-    }
-    {
-      warnIfInvokedDuringConstruction(vm, 'refs');
-    }
-    const {
-      refVNodes,
-      hasRefVNodes,
-      cmpTemplate
-    } = vm;
-    // If the `cmpTemplate` is null, that means that the template has not been rendered yet. Most likely this occurs
-    // if `this.refs` is called during the `connectedCallback` phase. The DOM elements have not been rendered yet,
-    // so log a warning. Note we also check `isBeingConstructed()` to avoid a double warning (due to
-    // `warnIfInvokedDuringConstruction` above).
-    if ( isNull(cmpTemplate) && !isBeingConstructed(vm)) {
-      logError(`this.refs is undefined for ${getComponentTag(vm)}. This is either because the attached template has no "lwc:ref" directive, or this.refs was ` + `invoked before renderedCallback(). Use this.refs only when the referenced HTML elements have ` + `been rendered to the DOM, such as within renderedCallback() or disconnectedCallback().`);
-    }
-    // For backwards compatibility with component written before template refs
-    // were introduced, we return undefined if the template has no refs defined
-    // anywhere. This fixes components that may want to add an expando called `refs`
-    // and are checking if it exists with `if (this.refs)`  before adding it.
-    // Note it is not sufficient to just check if `refVNodes` is null or empty,
-    // because a template may have `lwc:ref` defined within a falsy `if:true` block.
-    if (!hasRefVNodes) {
-      return;
-    }
-    // For templates that are using `lwc:ref`, if there are no refs currently available
-    // (e.g. refs inside of a falsy `if:true` block), we return an empty object.
-    if (isNull(refVNodes)) {
-      return EMPTY_REFS;
-    }
-    // The refNodes can be cached based on the refVNodes, since the refVNodes
-    // are recreated from scratch every time the template is rendered.
-    // This happens with `vm.refVNodes = null` in `template.ts` in `@lwc/engine-core`.
-    let refs = refsCache.get(refVNodes);
-    if (isUndefined$1(refs)) {
-      refs = create(null);
-      for (const key of keys(refVNodes)) {
-        refs[key] = refVNodes[key].elm;
-      }
-      freeze(refs);
-      refsCache.set(refVNodes, refs);
-    }
-    return refs;
-  },
-  // For backwards compat, we allow component authors to set `refs` as an expando
-  set refs(value) {
-    defineProperty(this, 'refs', {
-      configurable: true,
-      enumerable: true,
-      writable: true,
-      value
-    });
+    return vm.cmpRoot;
   },
   get shadowRoot() {
     // From within the component instance, the shadowRoot is always reported as "closed".
     // Authors should rely on this.template instead.
     return null;
-  },
-  get children() {
-    const vm = getAssociatedVM(this);
-    const renderer = vm.renderer;
-    {
-      warnIfInvokedDuringConstruction(vm, 'children');
-    }
-    return renderer.getChildren(vm.elm);
-  },
-  get childNodes() {
-    const vm = getAssociatedVM(this);
-    const renderer = vm.renderer;
-    {
-      warnIfInvokedDuringConstruction(vm, 'childNodes');
-    }
-    return renderer.getChildNodes(vm.elm);
-  },
-  get firstChild() {
-    const vm = getAssociatedVM(this);
-    const renderer = vm.renderer;
-    {
-      warnIfInvokedDuringConstruction(vm, 'firstChild');
-    }
-    return renderer.getFirstChild(vm.elm);
-  },
-  get firstElementChild() {
-    const vm = getAssociatedVM(this);
-    const renderer = vm.renderer;
-    {
-      warnIfInvokedDuringConstruction(vm, 'firstElementChild');
-    }
-    return renderer.getFirstElementChild(vm.elm);
-  },
-  get lastChild() {
-    const vm = getAssociatedVM(this);
-    const renderer = vm.renderer;
-    {
-      warnIfInvokedDuringConstruction(vm, 'lastChild');
-    }
-    return renderer.getLastChild(vm.elm);
-  },
-  get lastElementChild() {
-    const vm = getAssociatedVM(this);
-    const renderer = vm.renderer;
-    {
-      warnIfInvokedDuringConstruction(vm, 'lastElementChild');
-    }
-    return renderer.getLastElementChild(vm.elm);
   },
   render() {
     const vm = getAssociatedVM(this);
@@ -2290,34 +2178,12 @@ LightningElement.prototype = {
     return `[object ${vm.def.name}]`;
   }
 };
-const queryAndChildGetterDescriptors = create(null);
-const queryMethods = ['getElementsByClassName', 'getElementsByTagName', 'querySelector', 'querySelectorAll'];
-// Generic passthrough for query APIs on HTMLElement to the relevant Renderer APIs
-for (const queryMethod of queryMethods) {
-  queryAndChildGetterDescriptors[queryMethod] = {
-    value(arg) {
-      const vm = getAssociatedVM(this);
-      const {
-        elm,
-        renderer
-      } = vm;
-      {
-        warnIfInvokedDuringConstruction(vm, `${queryMethod}()`);
-      }
-      return renderer[queryMethod](elm, arg);
-    },
-    configurable: true,
-    enumerable: true,
-    writable: true
-  };
-}
-defineProperties(LightningElement.prototype, queryAndChildGetterDescriptors);
-const lightningBasedDescriptors = create(null);
+const lightningBasedDescriptors = create$1(null);
 for (const propName in HTMLElementOriginalDescriptors) {
   lightningBasedDescriptors[propName] = createBridgeToElementDescriptor(propName, HTMLElementOriginalDescriptors[propName]);
 }
-defineProperties(LightningElement.prototype, lightningBasedDescriptors);
-defineProperty(LightningElement, 'CustomElementConstructor', {
+defineProperties$1(BaseLightningElementConstructor.prototype, lightningBasedDescriptors);
+defineProperty$1(BaseLightningElementConstructor, 'CustomElementConstructor', {
   get() {
     // If required, a runtime-specific implementation must be defined.
     throw new ReferenceError('The current runtime does not support CustomElementConstructor.');
@@ -2325,9 +2191,629 @@ defineProperty(LightningElement, 'CustomElementConstructor', {
   configurable: true
 });
 {
-  patchLightningElementPrototypeWithRestrictions(LightningElement.prototype);
+  patchLightningElementPrototypeWithRestrictions(BaseLightningElementConstructor.prototype);
+} // @ts-ignore
+
+const BaseLightningElement = BaseLightningElementConstructor;
+function internalWireFieldDecorator(key) {
+  return {
+    get() {
+      const vm = getAssociatedVM(this);
+      componentValueObserved(vm, key);
+      return vm.cmpFields[key];
+    },
+    set(value) {
+      const vm = getAssociatedVM(this);
+      /**
+       * Reactivity for wired fields is provided in wiring.
+       * We intentionally add reactivity here since this is just
+       * letting the author to do the wrong thing, but it will keep our
+       * system to be backward compatible.
+       */
+
+      if (value !== vm.cmpFields[key]) {
+        vm.cmpFields[key] = value;
+        componentValueMutated(vm, key);
+      }
+    },
+    enumerable: true,
+    configurable: true
+  };
 }
-function createObservedFieldPropertyDescriptor(key) {
+
+/**
+ * Copyright (C) 2017 salesforce.com, inc.
+ */
+const {
+  isArray: isArray$1$1
+} = Array;
+const {
+  getPrototypeOf: getPrototypeOf$1$1,
+  create: ObjectCreate,
+  defineProperty: ObjectDefineProperty,
+  defineProperties: ObjectDefineProperties,
+  isExtensible,
+  getOwnPropertyDescriptor: getOwnPropertyDescriptor$1$1,
+  getOwnPropertyNames: getOwnPropertyNames$1$1,
+  getOwnPropertySymbols,
+  preventExtensions,
+  hasOwnProperty: hasOwnProperty$1$1
+} = Object;
+const {
+  push: ArrayPush$2,
+  concat: ArrayConcat,
+  map: ArrayMap$1$1
+} = Array.prototype;
+const OtS$1$1 = {}.toString;
+function toString$1$1(obj) {
+  if (obj && obj.toString) {
+    return obj.toString();
+  } else if (typeof obj === 'object') {
+    return OtS$1$1.call(obj);
+  } else {
+    return obj + '';
+  }
+}
+function isUndefined$2(obj) {
+  return obj === undefined;
+}
+function isFunction$1$1(obj) {
+  return typeof obj === 'function';
+}
+function isObject$1$1(obj) {
+  return typeof obj === 'object';
+}
+const proxyToValueMap = new WeakMap();
+function registerProxy(proxy, value) {
+  proxyToValueMap.set(proxy, value);
+}
+const unwrap = replicaOrAny => proxyToValueMap.get(replicaOrAny) || replicaOrAny;
+function wrapValue(membrane, value) {
+  return membrane.valueIsObservable(value) ? membrane.getProxy(value) : value;
+}
+/**
+ * Unwrap property descriptors will set value on original descriptor
+ * We only need to unwrap if value is specified
+ * @param descriptor external descrpitor provided to define new property on original value
+ */
+
+function unwrapDescriptor(descriptor) {
+  if (hasOwnProperty$1$1.call(descriptor, 'value')) {
+    descriptor.value = unwrap(descriptor.value);
+  }
+  return descriptor;
+}
+function lockShadowTarget(membrane, shadowTarget, originalTarget) {
+  const targetKeys = ArrayConcat.call(getOwnPropertyNames$1$1(originalTarget), getOwnPropertySymbols(originalTarget));
+  targetKeys.forEach(key => {
+    let descriptor = getOwnPropertyDescriptor$1$1(originalTarget, key); // We do not need to wrap the descriptor if configurable
+    // Because we can deal with wrapping it when user goes through
+    // Get own property descriptor. There is also a chance that this descriptor
+    // could change sometime in the future, so we can defer wrapping
+    // until we need to
+
+    if (!descriptor.configurable) {
+      descriptor = wrapDescriptor(membrane, descriptor, wrapValue);
+    }
+    ObjectDefineProperty(shadowTarget, key, descriptor);
+  });
+  preventExtensions(shadowTarget);
+}
+class ReactiveProxyHandler {
+  constructor(membrane, value) {
+    this.originalTarget = value;
+    this.membrane = membrane;
+  }
+  get(shadowTarget, key) {
+    const {
+      originalTarget,
+      membrane
+    } = this;
+    const value = originalTarget[key];
+    const {
+      valueObserved
+    } = membrane;
+    valueObserved(originalTarget, key);
+    return membrane.getProxy(value);
+  }
+  set(shadowTarget, key, value) {
+    const {
+      originalTarget,
+      membrane: {
+        valueMutated
+      }
+    } = this;
+    const oldValue = originalTarget[key];
+    if (oldValue !== value) {
+      originalTarget[key] = value;
+      valueMutated(originalTarget, key);
+    } else if (key === 'length' && isArray$1$1(originalTarget)) {
+      // fix for issue #236: push will add the new index, and by the time length
+      // is updated, the internal length is already equal to the new length value
+      // therefore, the oldValue is equal to the value. This is the forking logic
+      // to support this use case.
+      valueMutated(originalTarget, key);
+    }
+    return true;
+  }
+  deleteProperty(shadowTarget, key) {
+    const {
+      originalTarget,
+      membrane: {
+        valueMutated
+      }
+    } = this;
+    delete originalTarget[key];
+    valueMutated(originalTarget, key);
+    return true;
+  }
+  apply(shadowTarget, thisArg, argArray) {
+    /* No op */
+  }
+  construct(target, argArray, newTarget) {
+    /* No op */
+  }
+  has(shadowTarget, key) {
+    const {
+      originalTarget,
+      membrane: {
+        valueObserved
+      }
+    } = this;
+    valueObserved(originalTarget, key);
+    return key in originalTarget;
+  }
+  ownKeys(shadowTarget) {
+    const {
+      originalTarget
+    } = this;
+    return ArrayConcat.call(getOwnPropertyNames$1$1(originalTarget), getOwnPropertySymbols(originalTarget));
+  }
+  isExtensible(shadowTarget) {
+    const shadowIsExtensible = isExtensible(shadowTarget);
+    if (!shadowIsExtensible) {
+      return shadowIsExtensible;
+    }
+    const {
+      originalTarget,
+      membrane
+    } = this;
+    const targetIsExtensible = isExtensible(originalTarget);
+    if (!targetIsExtensible) {
+      lockShadowTarget(membrane, shadowTarget, originalTarget);
+    }
+    return targetIsExtensible;
+  }
+  setPrototypeOf(shadowTarget, prototype) {
+    {
+      throw new Error(`Invalid setPrototypeOf invocation for reactive proxy ${toString$1$1(this.originalTarget)}. Prototype of reactive objects cannot be changed.`);
+    }
+  }
+  getPrototypeOf(shadowTarget) {
+    const {
+      originalTarget
+    } = this;
+    return getPrototypeOf$1$1(originalTarget);
+  }
+  getOwnPropertyDescriptor(shadowTarget, key) {
+    const {
+      originalTarget,
+      membrane
+    } = this;
+    const {
+      valueObserved
+    } = this.membrane; // keys looked up via hasOwnProperty need to be reactive
+
+    valueObserved(originalTarget, key);
+    let desc = getOwnPropertyDescriptor$1$1(originalTarget, key);
+    if (isUndefined$2(desc)) {
+      return desc;
+    }
+    const shadowDescriptor = getOwnPropertyDescriptor$1$1(shadowTarget, key);
+    if (!isUndefined$2(shadowDescriptor)) {
+      return shadowDescriptor;
+    } // Note: by accessing the descriptor, the key is marked as observed
+    // but access to the value, setter or getter (if available) cannot observe
+    // mutations, just like regular methods, in which case we just do nothing.
+
+    desc = wrapDescriptor(membrane, desc, wrapValue);
+    if (!desc.configurable) {
+      // If descriptor from original target is not configurable,
+      // We must copy the wrapped descriptor over to the shadow target.
+      // Otherwise, proxy will throw an invariant error.
+      // This is our last chance to lock the value.
+      // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Proxy/handler/getOwnPropertyDescriptor#Invariants
+      ObjectDefineProperty(shadowTarget, key, desc);
+    }
+    return desc;
+  }
+  preventExtensions(shadowTarget) {
+    const {
+      originalTarget,
+      membrane
+    } = this;
+    lockShadowTarget(membrane, shadowTarget, originalTarget);
+    preventExtensions(originalTarget);
+    return true;
+  }
+  defineProperty(shadowTarget, key, descriptor) {
+    const {
+      originalTarget,
+      membrane
+    } = this;
+    const {
+      valueMutated
+    } = membrane;
+    const {
+      configurable
+    } = descriptor; // We have to check for value in descriptor
+    // because Object.freeze(proxy) calls this method
+    // with only { configurable: false, writeable: false }
+    // Additionally, method will only be called with writeable:false
+    // if the descriptor has a value, as opposed to getter/setter
+    // So we can just check if writable is present and then see if
+    // value is present. This eliminates getter and setter descriptors
+
+    if (hasOwnProperty$1$1.call(descriptor, 'writable') && !hasOwnProperty$1$1.call(descriptor, 'value')) {
+      const originalDescriptor = getOwnPropertyDescriptor$1$1(originalTarget, key);
+      descriptor.value = originalDescriptor.value;
+    }
+    ObjectDefineProperty(originalTarget, key, unwrapDescriptor(descriptor));
+    if (configurable === false) {
+      ObjectDefineProperty(shadowTarget, key, wrapDescriptor(membrane, descriptor, wrapValue));
+    }
+    valueMutated(originalTarget, key);
+    return true;
+  }
+}
+function wrapReadOnlyValue(membrane, value) {
+  return membrane.valueIsObservable(value) ? membrane.getReadOnlyProxy(value) : value;
+}
+class ReadOnlyHandler {
+  constructor(membrane, value) {
+    this.originalTarget = value;
+    this.membrane = membrane;
+  }
+  get(shadowTarget, key) {
+    const {
+      membrane,
+      originalTarget
+    } = this;
+    const value = originalTarget[key];
+    const {
+      valueObserved
+    } = membrane;
+    valueObserved(originalTarget, key);
+    return membrane.getReadOnlyProxy(value);
+  }
+  set(shadowTarget, key, value) {
+    {
+      const {
+        originalTarget
+      } = this;
+      throw new Error(`Invalid mutation: Cannot set "${key.toString()}" on "${originalTarget}". "${originalTarget}" is read-only.`);
+    }
+  }
+  deleteProperty(shadowTarget, key) {
+    {
+      const {
+        originalTarget
+      } = this;
+      throw new Error(`Invalid mutation: Cannot delete "${key.toString()}" on "${originalTarget}". "${originalTarget}" is read-only.`);
+    }
+  }
+  apply(shadowTarget, thisArg, argArray) {
+    /* No op */
+  }
+  construct(target, argArray, newTarget) {
+    /* No op */
+  }
+  has(shadowTarget, key) {
+    const {
+      originalTarget,
+      membrane: {
+        valueObserved
+      }
+    } = this;
+    valueObserved(originalTarget, key);
+    return key in originalTarget;
+  }
+  ownKeys(shadowTarget) {
+    const {
+      originalTarget
+    } = this;
+    return ArrayConcat.call(getOwnPropertyNames$1$1(originalTarget), getOwnPropertySymbols(originalTarget));
+  }
+  setPrototypeOf(shadowTarget, prototype) {
+    {
+      const {
+        originalTarget
+      } = this;
+      throw new Error(`Invalid prototype mutation: Cannot set prototype on "${originalTarget}". "${originalTarget}" prototype is read-only.`);
+    }
+  }
+  getOwnPropertyDescriptor(shadowTarget, key) {
+    const {
+      originalTarget,
+      membrane
+    } = this;
+    const {
+      valueObserved
+    } = membrane; // keys looked up via hasOwnProperty need to be reactive
+
+    valueObserved(originalTarget, key);
+    let desc = getOwnPropertyDescriptor$1$1(originalTarget, key);
+    if (isUndefined$2(desc)) {
+      return desc;
+    }
+    const shadowDescriptor = getOwnPropertyDescriptor$1$1(shadowTarget, key);
+    if (!isUndefined$2(shadowDescriptor)) {
+      return shadowDescriptor;
+    } // Note: by accessing the descriptor, the key is marked as observed
+    // but access to the value or getter (if available) cannot be observed,
+    // just like regular methods, in which case we just do nothing.
+
+    desc = wrapDescriptor(membrane, desc, wrapReadOnlyValue);
+    if (hasOwnProperty$1$1.call(desc, 'set')) {
+      desc.set = undefined; // readOnly membrane does not allow setters
+    }
+
+    if (!desc.configurable) {
+      // If descriptor from original target is not configurable,
+      // We must copy the wrapped descriptor over to the shadow target.
+      // Otherwise, proxy will throw an invariant error.
+      // This is our last chance to lock the value.
+      // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Proxy/handler/getOwnPropertyDescriptor#Invariants
+      ObjectDefineProperty(shadowTarget, key, desc);
+    }
+    return desc;
+  }
+  preventExtensions(shadowTarget) {
+    {
+      const {
+        originalTarget
+      } = this;
+      throw new Error(`Invalid mutation: Cannot preventExtensions on ${originalTarget}". "${originalTarget} is read-only.`);
+    }
+  }
+  defineProperty(shadowTarget, key, descriptor) {
+    {
+      const {
+        originalTarget
+      } = this;
+      throw new Error(`Invalid mutation: Cannot defineProperty "${key.toString()}" on "${originalTarget}". "${originalTarget}" is read-only.`);
+    }
+  }
+}
+function extract(objectOrArray) {
+  if (isArray$1$1(objectOrArray)) {
+    return objectOrArray.map(item => {
+      const original = unwrap(item);
+      if (original !== item) {
+        return extract(original);
+      }
+      return item;
+    });
+  }
+  const obj = ObjectCreate(getPrototypeOf$1$1(objectOrArray));
+  const names = getOwnPropertyNames$1$1(objectOrArray);
+  return ArrayConcat.call(names, getOwnPropertySymbols(objectOrArray)).reduce((seed, key) => {
+    const item = objectOrArray[key];
+    const original = unwrap(item);
+    if (original !== item) {
+      seed[key] = extract(original);
+    } else {
+      seed[key] = item;
+    }
+    return seed;
+  }, obj);
+}
+const formatter = {
+  header: plainOrProxy => {
+    const originalTarget = unwrap(plainOrProxy); // if originalTarget is falsy or not unwrappable, exit
+
+    if (!originalTarget || originalTarget === plainOrProxy) {
+      return null;
+    }
+    const obj = extract(plainOrProxy);
+    return ['object', {
+      object: obj
+    }];
+  },
+  hasBody: () => {
+    return false;
+  },
+  body: () => {
+    return null;
+  }
+}; // Inspired from paulmillr/es6-shim
+// https://github.com/paulmillr/es6-shim/blob/master/es6-shim.js#L176-L185
+
+function getGlobal() {
+  // the only reliable means to get the global object is `Function('return this')()`
+  // However, this causes CSP violations in Chrome apps.
+  if (typeof globalThis !== 'undefined') {
+    return globalThis;
+  }
+  if (typeof self !== 'undefined') {
+    return self;
+  }
+  if (typeof window !== 'undefined') {
+    return window;
+  }
+  if (typeof global !== 'undefined') {
+    return global;
+  } // Gracefully degrade if not able to locate the global object
+
+  return {};
+}
+function init() {
+  const global = getGlobal(); // Custom Formatter for Dev Tools. To enable this, open Chrome Dev Tools
+  //  - Go to Settings,
+  //  - Under console, select "Enable custom formatters"
+  // For more information, https://docs.google.com/document/d/1FTascZXT9cxfetuPRT2eXPQKXui4nWFivUnS_335T3U/preview
+
+  const devtoolsFormatters = global.devtoolsFormatters || [];
+  ArrayPush$2.call(devtoolsFormatters, formatter);
+  global.devtoolsFormatters = devtoolsFormatters;
+}
+{
+  init();
+}
+function createShadowTarget(value) {
+  let shadowTarget = undefined;
+  if (isArray$1$1(value)) {
+    shadowTarget = [];
+  } else if (isObject$1$1(value)) {
+    shadowTarget = {};
+  }
+  return shadowTarget;
+}
+const ObjectDotPrototype = Object.prototype;
+function defaultValueIsObservable(value) {
+  // intentionally checking for null
+  if (value === null) {
+    return false;
+  } // treat all non-object types, including undefined, as non-observable values
+
+  if (typeof value !== 'object') {
+    return false;
+  }
+  if (isArray$1$1(value)) {
+    return true;
+  }
+  const proto = getPrototypeOf$1$1(value);
+  return proto === ObjectDotPrototype || proto === null || getPrototypeOf$1$1(proto) === null;
+}
+const defaultValueObserved = (obj, key) => {
+  /* do nothing */
+};
+const defaultValueMutated = (obj, key) => {
+  /* do nothing */
+};
+const defaultValueDistortion = value => value;
+function wrapDescriptor(membrane, descriptor, getValue) {
+  const {
+    set,
+    get
+  } = descriptor;
+  if (hasOwnProperty$1$1.call(descriptor, 'value')) {
+    descriptor.value = getValue(membrane, descriptor.value);
+  } else {
+    if (!isUndefined$2(get)) {
+      descriptor.get = function () {
+        // invoking the original getter with the original target
+        return getValue(membrane, get.call(unwrap(this)));
+      };
+    }
+    if (!isUndefined$2(set)) {
+      descriptor.set = function (value) {
+        // At this point we don't have a clear indication of whether
+        // or not a valid mutation will occur, we don't have the key,
+        // and we are not sure why and how they are invoking this setter.
+        // Nevertheless we preserve the original semantics by invoking the
+        // original setter with the original target and the unwrapped value
+        set.call(unwrap(this), membrane.unwrapProxy(value));
+      };
+    }
+  }
+  return descriptor;
+}
+class ReactiveMembrane {
+  constructor(options) {
+    this.valueDistortion = defaultValueDistortion;
+    this.valueMutated = defaultValueMutated;
+    this.valueObserved = defaultValueObserved;
+    this.valueIsObservable = defaultValueIsObservable;
+    this.objectGraph = new WeakMap();
+    if (!isUndefined$2(options)) {
+      const {
+        valueDistortion,
+        valueMutated,
+        valueObserved,
+        valueIsObservable
+      } = options;
+      this.valueDistortion = isFunction$1$1(valueDistortion) ? valueDistortion : defaultValueDistortion;
+      this.valueMutated = isFunction$1$1(valueMutated) ? valueMutated : defaultValueMutated;
+      this.valueObserved = isFunction$1$1(valueObserved) ? valueObserved : defaultValueObserved;
+      this.valueIsObservable = isFunction$1$1(valueIsObservable) ? valueIsObservable : defaultValueIsObservable;
+    }
+  }
+  getProxy(value) {
+    const unwrappedValue = unwrap(value);
+    const distorted = this.valueDistortion(unwrappedValue);
+    if (this.valueIsObservable(distorted)) {
+      const o = this.getReactiveState(unwrappedValue, distorted); // when trying to extract the writable version of a readonly
+      // we return the readonly.
+
+      return o.readOnly === value ? value : o.reactive;
+    }
+    return distorted;
+  }
+  getReadOnlyProxy(value) {
+    value = unwrap(value);
+    const distorted = this.valueDistortion(value);
+    if (this.valueIsObservable(distorted)) {
+      return this.getReactiveState(value, distorted).readOnly;
+    }
+    return distorted;
+  }
+  unwrapProxy(p) {
+    return unwrap(p);
+  }
+  getReactiveState(value, distortedValue) {
+    const {
+      objectGraph
+    } = this;
+    let reactiveState = objectGraph.get(distortedValue);
+    if (reactiveState) {
+      return reactiveState;
+    }
+    const membrane = this;
+    reactiveState = {
+      get reactive() {
+        const reactiveHandler = new ReactiveProxyHandler(membrane, distortedValue); // caching the reactive proxy after the first time it is accessed
+
+        const proxy = new Proxy(createShadowTarget(distortedValue), reactiveHandler);
+        registerProxy(proxy, value);
+        ObjectDefineProperty(this, 'reactive', {
+          value: proxy
+        });
+        return proxy;
+      },
+      get readOnly() {
+        const readOnlyHandler = new ReadOnlyHandler(membrane, distortedValue); // caching the readOnly proxy after the first time it is accessed
+
+        const proxy = new Proxy(createShadowTarget(distortedValue), readOnlyHandler);
+        registerProxy(proxy, value);
+        ObjectDefineProperty(this, 'readOnly', {
+          value: proxy
+        });
+        return proxy;
+      }
+    };
+    objectGraph.set(distortedValue, reactiveState);
+    return reactiveState;
+  }
+}
+/** version: 0.26.0 */
+
+/*
+ * Copyright (c) 2018, salesforce.com, inc.
+ * All rights reserved.
+ * SPDX-License-Identifier: MIT
+ * For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/MIT
+ */
+
+function valueDistortion(value) {
+  return value;
+}
+const reactiveMembrane = new ReactiveMembrane({
+  valueObserved,
+  valueMutated,
+  valueDistortion
+});
+function internalTrackDecorator(key) {
   return {
     get() {
       const vm = getAssociatedVM(this);
@@ -2336,12 +2822,188 @@ function createObservedFieldPropertyDescriptor(key) {
     },
     set(newValue) {
       const vm = getAssociatedVM(this);
-      updateComponentValue(vm, key, newValue);
+      {
+        const vmBeingRendered = getVMBeingRendered();
+        assert$1.invariant(!isInvokingRender, `${vmBeingRendered}.render() method has side effects on the state of ${vm}.${toString$1(key)}`);
+        assert$1.invariant(!isUpdatingTemplate, `Updating the template of ${vmBeingRendered} has side effects on the state of ${vm}.${toString$1(key)}`);
+      }
+      const reactiveOrAnyValue = reactiveMembrane.getProxy(newValue);
+      if (reactiveOrAnyValue !== vm.cmpFields[key]) {
+        vm.cmpFields[key] = reactiveOrAnyValue;
+        componentValueMutated(vm, key);
+      }
     },
     enumerable: true,
     configurable: true
   };
 }
+
+/**
+ * Copyright (C) 2018 salesforce.com, inc.
+ */
+
+/**
+ * Copyright (C) 2018 salesforce.com, inc.
+ */
+
+/*
+ * Copyright (c) 2018, salesforce.com, inc.
+ * All rights reserved.
+ * SPDX-License-Identifier: MIT
+ * For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/MIT
+ */
+const {
+  assign: assign$1$1,
+  create: create$2,
+  defineProperties: defineProperties$1$1,
+  defineProperty: defineProperty$1$1,
+  freeze: freeze$1$1,
+  getOwnPropertyDescriptor: getOwnPropertyDescriptor$2,
+  getOwnPropertyNames: getOwnPropertyNames$2,
+  getPrototypeOf: getPrototypeOf$2,
+  hasOwnProperty: hasOwnProperty$2,
+  isFrozen: isFrozen$1$1,
+  keys: keys$1$1,
+  seal: seal$1$1,
+  setPrototypeOf: setPrototypeOf$1$1
+} = Object;
+const {
+  filter: ArrayFilter$1$1,
+  find: ArrayFind$1$1,
+  indexOf: ArrayIndexOf$2,
+  join: ArrayJoin$1$1,
+  map: ArrayMap$2,
+  push: ArrayPush$3,
+  reduce: ArrayReduce$1$1,
+  reverse: ArrayReverse$1$1,
+  slice: ArraySlice$1$1,
+  splice: ArraySplice$2,
+  unshift: ArrayUnshift$1$1,
+  forEach: forEach$1$1
+} = Array.prototype;
+const {
+  charCodeAt: StringCharCodeAt$1$1,
+  replace: StringReplace$1$1,
+  slice: StringSlice$1$1,
+  toLowerCase: StringToLowerCase$1$1
+} = String.prototype;
+/*
+ * Copyright (c) 2018, salesforce.com, inc.
+ * All rights reserved.
+ * SPDX-License-Identifier: MIT
+ * For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/MIT
+ */
+
+/**
+ * According to the following list, there are 48 aria attributes of which two (ariaDropEffect and
+ * ariaGrabbed) are deprecated:
+ * https://www.w3.org/TR/wai-aria-1.1/#x6-6-definitions-of-states-and-properties-all-aria-attributes
+ *
+ * The above list of 46 aria attributes is consistent with the following resources:
+ * https://github.com/w3c/aria/pull/708/files#diff-eacf331f0ffc35d4b482f1d15a887d3bR11060
+ * https://wicg.github.io/aom/spec/aria-reflection.html
+ */
+
+const AriaPropertyNames$1$1 = ['ariaActiveDescendant', 'ariaAtomic', 'ariaAutoComplete', 'ariaBusy', 'ariaChecked', 'ariaColCount', 'ariaColIndex', 'ariaColSpan', 'ariaControls', 'ariaCurrent', 'ariaDescribedBy', 'ariaDetails', 'ariaDisabled', 'ariaErrorMessage', 'ariaExpanded', 'ariaFlowTo', 'ariaHasPopup', 'ariaHidden', 'ariaInvalid', 'ariaKeyShortcuts', 'ariaLabel', 'ariaLabelledBy', 'ariaLevel', 'ariaLive', 'ariaModal', 'ariaMultiLine', 'ariaMultiSelectable', 'ariaOrientation', 'ariaOwns', 'ariaPlaceholder', 'ariaPosInSet', 'ariaPressed', 'ariaReadOnly', 'ariaRelevant', 'ariaRequired', 'ariaRoleDescription', 'ariaRowCount', 'ariaRowIndex', 'ariaRowSpan', 'ariaSelected', 'ariaSetSize', 'ariaSort', 'ariaValueMax', 'ariaValueMin', 'ariaValueNow', 'ariaValueText', 'role'];
+const AttrNameToPropNameMap$2 = create$2(null);
+const PropNameToAttrNameMap$2 = create$2(null); // Synthetic creation of all AOM property descriptors for Custom Elements
+
+forEach$1$1.call(AriaPropertyNames$1$1, propName => {
+  // Typescript infers the wrong function type for this particular overloaded method:
+  // https://github.com/Microsoft/TypeScript/issues/27972
+  // @ts-ignore type-mismatch
+  const attrName = StringToLowerCase$1$1.call(StringReplace$1$1.call(propName, /^aria/, 'aria-'));
+  AttrNameToPropNameMap$2[attrName] = propName;
+  PropNameToAttrNameMap$2[propName] = attrName;
+});
+/*
+ * Copyright (c) 2018, salesforce.com, inc.
+ * All rights reserved.
+ * SPDX-License-Identifier: MIT
+ * For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/MIT
+ */
+// Inspired from: https://mathiasbynens.be/notes/globalthis
+
+const _globalThis$1$1 = function () {
+  // On recent browsers, `globalThis` is already defined. In this case return it directly.
+  if (typeof globalThis === 'object') {
+    return globalThis;
+  }
+  let _globalThis;
+  try {
+    // eslint-disable-next-line no-extend-native
+    Object.defineProperty(Object.prototype, '__magic__', {
+      get: function () {
+        return this;
+      },
+      configurable: true
+    }); // __magic__ is undefined in Safari 10 and IE10 and older.
+    // @ts-ignore
+    // eslint-disable-next-line no-undef
+
+    _globalThis = __magic__; // @ts-ignore
+
+    delete Object.prototype.__magic__;
+  } catch (ex) {// In IE8, Object.defineProperty only works on DOM objects.
+  } finally {
+    // If the magic above fails for some reason we assume that we are in a legacy browser.
+    // Assume `window` exists in this case.
+    if (typeof _globalThis === 'undefined') {
+      // @ts-ignore
+      _globalThis = window;
+    }
+  }
+  return _globalThis;
+}();
+/*
+ * Copyright (c) 2018, salesforce.com, inc.
+ * All rights reserved.
+ * SPDX-License-Identifier: MIT
+ * For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/MIT
+ */
+
+/*
+ * In IE11, symbols are expensive.
+ * Due to the nature of the symbol polyfill. This method abstract the
+ * creation of symbols, so we can fallback to string when native symbols
+ * are not supported. Note that we can't use typeof since it will fail when transpiling.
+ */
+
+const hasNativeSymbolsSupport$1$1 = Symbol('x').toString() === 'Symbol(x)';
+const HTML_ATTRIBUTES_TO_PROPERTY$1$1 = {
+  accesskey: 'accessKey',
+  readonly: 'readOnly',
+  tabindex: 'tabIndex',
+  bgcolor: 'bgColor',
+  colspan: 'colSpan',
+  rowspan: 'rowSpan',
+  contenteditable: 'contentEditable',
+  crossorigin: 'crossOrigin',
+  datetime: 'dateTime',
+  formaction: 'formAction',
+  ismap: 'isMap',
+  maxlength: 'maxLength',
+  minlength: 'minLength',
+  novalidate: 'noValidate',
+  usemap: 'useMap',
+  for: 'htmlFor'
+};
+keys$1$1(HTML_ATTRIBUTES_TO_PROPERTY$1$1).forEach(attrName => {});
+/** version: 1.7.7 */
+
+/*
+ * Copyright (c) 2018, salesforce.com, inc.
+ * All rights reserved.
+ * SPDX-License-Identifier: MIT
+ * For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/MIT
+ */
+
+if (!_globalThis$1$1.lwcRuntimeFlags) {
+  Object.defineProperty(_globalThis$1$1, 'lwcRuntimeFlags', {
+    value: create$2(null)
+  });
+}
+const runtimeFlags = _globalThis$1$1.lwcRuntimeFlags; // This function is not supported for use within components and is meant for
 function createPublicPropertyDescriptor(key) {
   return {
     get() {
@@ -2359,8 +3021,8 @@ function createPublicPropertyDescriptor(key) {
       const vm = getAssociatedVM(this);
       {
         const vmBeingRendered = getVMBeingRendered();
-        assert.invariant(!isInvokingRender, `${vmBeingRendered}.render() method has side effects on the state of ${vm}.${toString$1(key)}`);
-        assert.invariant(!isUpdatingTemplate, `Updating the template of ${vmBeingRendered} has side effects on the state of ${vm}.${toString$1(key)}`);
+        assert$1.invariant(!isInvokingRender, `${vmBeingRendered}.render() method has side effects on the state of ${vm}.${toString$1(key)}`);
+        assert$1.invariant(!isUpdatingTemplate, `Updating the template of ${vmBeingRendered} has side effects on the state of ${vm}.${toString$1(key)}`);
       }
       vm.cmpProps[key] = newValue;
       componentValueMutated(vm, key);
@@ -2368,6 +3030,46 @@ function createPublicPropertyDescriptor(key) {
     enumerable: true,
     configurable: true
   };
+}
+class AccessorReactiveObserver extends ReactiveObserver {
+  constructor(vm, set) {
+    super(() => {
+      if (isFalse$1$1(this.debouncing)) {
+        this.debouncing = true;
+        addCallbackToNextTick(() => {
+          if (isTrue$1$1(this.debouncing)) {
+            const {
+              value
+            } = this;
+            const {
+              isDirty: dirtyStateBeforeSetterCall,
+              component,
+              idx
+            } = vm;
+            set.call(component, value); // de-bouncing after the call to the original setter to prevent
+            // infinity loop if the setter itself is mutating things that
+            // were accessed during the previous invocation.
+
+            this.debouncing = false;
+            if (isTrue$1$1(vm.isDirty) && isFalse$1$1(dirtyStateBeforeSetterCall) && idx > 0) {
+              // immediate rehydration due to a setter driven mutation, otherwise
+              // the component will get rendered on the second tick, which it is not
+              // desirable.
+              rerenderVM(vm);
+            }
+          }
+        });
+      }
+    });
+    this.debouncing = false;
+  }
+  reset(value) {
+    super.reset();
+    this.debouncing = false;
+    if (arguments.length > 0) {
+      this.value = value;
+    }
+  }
 }
 function createPublicAccessorDescriptor(key, descriptor) {
   const {
@@ -2378,7 +3080,7 @@ function createPublicAccessorDescriptor(key, descriptor) {
   } = descriptor;
   if (!isFunction$1(get)) {
     {
-      assert.invariant(isFunction$1(get), `Invalid compiler output for public accessor ${toString$1(key)} decorated with @api`);
+      assert$1.invariant(isFunction$1(get), `Invalid compiler output for public accessor ${toString$1(key)} decorated with @api`);
     }
     throw new Error();
   }
@@ -2394,20 +3096,35 @@ function createPublicAccessorDescriptor(key, descriptor) {
       const vm = getAssociatedVM(this);
       {
         const vmBeingRendered = getVMBeingRendered();
-        assert.invariant(!isInvokingRender, `${vmBeingRendered}.render() method has side effects on the state of ${vm}.${toString$1(key)}`);
-        assert.invariant(!isUpdatingTemplate, `Updating the template of ${vmBeingRendered} has side effects on the state of ${vm}.${toString$1(key)}`);
+        assert$1.invariant(!isInvokingRender, `${vmBeingRendered}.render() method has side effects on the state of ${vm}.${toString$1(key)}`);
+        assert$1.invariant(!isUpdatingTemplate, `Updating the template of ${vmBeingRendered} has side effects on the state of ${vm}.${toString$1(key)}`);
       }
       if (set) {
-        set.call(this, newValue);
+        if (runtimeFlags.ENABLE_REACTIVE_SETTER) {
+          let ro = vm.oar[key];
+          if (isUndefined$1(ro)) {
+            ro = vm.oar[key] = new AccessorReactiveObserver(vm, set);
+          } // every time we invoke this setter from outside (through this wrapper setter)
+          // we should reset the value and then debounce just in case there is a pending
+          // invocation the next tick that is not longer relevant since the value is changing
+          // from outside.
+
+          ro.reset(newValue);
+          ro.observe(() => {
+            set.call(this, newValue);
+          });
+        } else {
+          set.call(this, newValue);
+        }
       } else {
-        assert.fail(`Invalid attempt to set a new value for property ${toString$1(key)} of ${vm} that does not has a setter decorated with @api.`);
+        assert$1.fail(`Invalid attempt to set a new value for property ${toString$1(key)} of ${vm} that does not has a setter decorated with @api.`);
       }
     },
     enumerable,
     configurable
   };
 }
-function internalTrackDecorator(key) {
+function createObservedFieldPropertyDescriptor(key) {
   return {
     get() {
       const vm = getAssociatedVM(this);
@@ -2416,34 +3133,10 @@ function internalTrackDecorator(key) {
     },
     set(newValue) {
       const vm = getAssociatedVM(this);
-      {
-        const vmBeingRendered = getVMBeingRendered();
-        assert.invariant(!isInvokingRender, `${vmBeingRendered}.render() method has side effects on the state of ${vm}.${toString$1(key)}`);
-        assert.invariant(!isUpdatingTemplate, `Updating the template of ${vmBeingRendered} has side effects on the state of ${vm}.${toString$1(key)}`);
+      if (newValue !== vm.cmpFields[key]) {
+        vm.cmpFields[key] = newValue;
+        componentValueMutated(vm, key);
       }
-      const reactiveOrAnyValue = getReactiveProxy(newValue);
-      updateComponentValue(vm, key, reactiveOrAnyValue);
-    },
-    enumerable: true,
-    configurable: true
-  };
-}
-function internalWireFieldDecorator(key) {
-  return {
-    get() {
-      const vm = getAssociatedVM(this);
-      componentValueObserved(vm, key);
-      return vm.cmpFields[key];
-    },
-    set(value) {
-      const vm = getAssociatedVM(this);
-      /**
-       * Reactivity for wired fields is provided in wiring.
-       * We intentionally add reactivity here since this is just
-       * letting the author to do the wrong thing, but it will keep our
-       * system to be backward compatible.
-       */
-      updateComponentValue(vm, key, value);
     },
     enumerable: true,
     configurable: true
@@ -2456,77 +3149,71 @@ function internalWireFieldDecorator(key) {
  * SPDX-License-Identifier: MIT
  * For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/MIT
  */
-function getClassDescriptorType(descriptor) {
-  if (isFunction$1(descriptor.value)) {
-    return "method" /* DescriptorType.Method */;
-  } else if (isFunction$1(descriptor.set) || isFunction$1(descriptor.get)) {
-    return "accessor" /* DescriptorType.Accessor */;
-  } else {
-    return "field" /* DescriptorType.Field */;
-  }
-}
-
+var PropType;
+(function (PropType) {
+  PropType[PropType["Field"] = 0] = "Field";
+  PropType[PropType["Set"] = 1] = "Set";
+  PropType[PropType["Get"] = 2] = "Get";
+  PropType[PropType["GetSet"] = 3] = "GetSet";
+})(PropType || (PropType = {}));
 function validateObservedField(Ctor, fieldName, descriptor) {
-  if (!isUndefined$1(descriptor)) {
-    const type = getClassDescriptorType(descriptor);
-    const message = `Invalid observed ${fieldName} field. Found a duplicate ${type} with the same name.`;
-    // [W-9927596] Ideally we always throw an error when detecting duplicate observed field.
-    // This branch is only here for backward compatibility reasons.
-    if (type === "accessor" /* DescriptorType.Accessor */) {
-      logError(message);
-    } else {
-      assert.fail(message);
+  {
+    if (!isUndefined$1(descriptor)) {
+      assert$1.fail(`Compiler Error: Invalid field ${fieldName} declaration.`);
     }
   }
 }
 function validateFieldDecoratedWithTrack(Ctor, fieldName, descriptor) {
-  if (!isUndefined$1(descriptor)) {
-    const type = getClassDescriptorType(descriptor);
-    assert.fail(`Invalid @track ${fieldName} field. Found a duplicate ${type} with the same name.`);
+  {
+    if (!isUndefined$1(descriptor)) {
+      assert$1.fail(`Compiler Error: Invalid @track ${fieldName} declaration.`);
+    }
   }
 }
 function validateFieldDecoratedWithWire(Ctor, fieldName, descriptor) {
-  if (!isUndefined$1(descriptor)) {
-    const type = getClassDescriptorType(descriptor);
-    assert.fail(`Invalid @wire ${fieldName} field. Found a duplicate ${type} with the same name.`);
+  {
+    if (!isUndefined$1(descriptor)) {
+      assert$1.fail(`Compiler Error: Invalid @wire(...) ${fieldName} field declaration.`);
+    }
   }
 }
 function validateMethodDecoratedWithWire(Ctor, methodName, descriptor) {
-  if (isUndefined$1(descriptor) || !isFunction$1(descriptor.value) || isFalse(descriptor.writable)) {
-    assert.fail(`Invalid @wire ${methodName} method.`);
+  {
+    if (isUndefined$1(descriptor) || !isFunction$1(descriptor.value) || isFalse$1$1(descriptor.writable)) {
+      assert$1.fail(`Compiler Error: Invalid @wire(...) ${methodName} method declaration.`);
+    }
   }
 }
 function validateFieldDecoratedWithApi(Ctor, fieldName, descriptor) {
-  if (!isUndefined$1(descriptor)) {
-    const type = getClassDescriptorType(descriptor);
-    const message = `Invalid @api ${fieldName} field. Found a duplicate ${type} with the same name.`;
-    // [W-9927596] Ideally we always throw an error when detecting duplicate public properties.
-    // This branch is only here for backward compatibility reasons.
-    if (type === "accessor" /* DescriptorType.Accessor */) {
-      logError(message);
-    } else {
-      assert.fail(message);
+  {
+    if (!isUndefined$1(descriptor)) {
+      assert$1.fail(`Compiler Error: Invalid @api ${fieldName} field declaration.`);
     }
   }
 }
 function validateAccessorDecoratedWithApi(Ctor, fieldName, descriptor) {
-  if (isUndefined$1(descriptor)) {
-    assert.fail(`Invalid @api get ${fieldName} accessor.`);
-  } else if (isFunction$1(descriptor.set)) {
-    assert.isTrue(isFunction$1(descriptor.get), `Missing getter for property ${fieldName} decorated with @api in ${Ctor}. You cannot have a setter without the corresponding getter.`);
-  } else if (!isFunction$1(descriptor.get)) {
-    assert.fail(`Missing @api get ${fieldName} accessor.`);
+  {
+    if (isUndefined$1(descriptor)) {
+      assert$1.fail(`Compiler Error: Invalid @api get ${fieldName} accessor declaration.`);
+    } else if (isFunction$1(descriptor.set)) {
+      assert$1.isTrue(isFunction$1(descriptor.get), `Compiler Error: Missing getter for property ${toString$1(fieldName)} decorated with @api in ${Ctor}. You cannot have a setter without the corresponding getter.`);
+    } else if (!isFunction$1(descriptor.get)) {
+      assert$1.fail(`Compiler Error: Missing @api get ${fieldName} accessor declaration.`);
+    }
   }
 }
 function validateMethodDecoratedWithApi(Ctor, methodName, descriptor) {
-  if (isUndefined$1(descriptor) || !isFunction$1(descriptor.value) || isFalse(descriptor.writable)) {
-    assert.fail(`Invalid @api ${methodName} method.`);
+  {
+    if (isUndefined$1(descriptor) || !isFunction$1(descriptor.value) || isFalse$1$1(descriptor.writable)) {
+      assert$1.fail(`Compiler Error: Invalid @api ${methodName} method declaration.`);
+    }
   }
 }
 /**
  * INTERNAL: This function can only be invoked by compiled code. The compiler
  * will prevent this function from being imported by user-land code.
  */
+
 function registerDecorators(Ctor, meta) {
   const proto = Ctor.prototype;
   const {
@@ -2536,12 +3223,12 @@ function registerDecorators(Ctor, meta) {
     track,
     fields
   } = meta;
-  const apiMethods = create(null);
-  const apiFields = create(null);
-  const wiredMethods = create(null);
-  const wiredFields = create(null);
-  const observedFields = create(null);
-  const apiFieldsConfig = create(null);
+  const apiMethods = create$1(null);
+  const apiFields = create$1(null);
+  const wiredMethods = create$1(null);
+  const wiredFields = create$1(null);
+  const observedFields = create$1(null);
+  const apiFieldsConfig = create$1(null);
   let descriptor;
   if (!isUndefined$1(publicProps)) {
     for (const fieldName in publicProps) {
@@ -2562,21 +3249,14 @@ function registerDecorators(Ctor, meta) {
         {
           validateFieldDecoratedWithApi(Ctor, fieldName, descriptor);
         }
-        // [W-9927596] If a component has both a public property and a private setter/getter
-        // with the same name, the property is defined as a public accessor. This branch is
-        // only here for backward compatibility reasons.
-        if (!isUndefined$1(descriptor) && !isUndefined$1(descriptor.get)) {
-          descriptor = createPublicAccessorDescriptor(fieldName, descriptor);
-        } else {
-          descriptor = createPublicPropertyDescriptor(fieldName);
-        }
+        descriptor = createPublicPropertyDescriptor(fieldName);
       }
       apiFields[fieldName] = descriptor;
-      defineProperty(proto, fieldName, descriptor);
+      defineProperty$1(proto, fieldName, descriptor);
     }
   }
   if (!isUndefined$1(publicMethods)) {
-    forEach.call(publicMethods, methodName => {
+    forEach$1.call(publicMethods, methodName => {
       descriptor = getOwnPropertyDescriptor$1(proto, methodName);
       {
         validateMethodDecoratedWithApi(Ctor, methodName, descriptor);
@@ -2598,7 +3278,7 @@ function registerDecorators(Ctor, meta) {
       descriptor = getOwnPropertyDescriptor$1(proto, fieldOrMethodName);
       if (method === 1) {
         {
-          assert.isTrue(adapter, `@wire on method "${fieldOrMethodName}": adapter id must be truthy.`);
+          assert$1.isTrue(adapter, `@wire on method "${fieldOrMethodName}": adapter id must be truthy.`);
           validateMethodDecoratedWithWire(Ctor, fieldOrMethodName, descriptor);
         }
         if (isUndefined$1(descriptor)) {
@@ -2608,13 +3288,13 @@ function registerDecorators(Ctor, meta) {
         storeWiredMethodMeta(descriptor, adapter, configCallback, dynamic);
       } else {
         {
-          assert.isTrue(adapter, `@wire on field "${fieldOrMethodName}": adapter id must be truthy.`);
+          assert$1.isTrue(adapter, `@wire on field "${fieldOrMethodName}": adapter id must be truthy.`);
           validateFieldDecoratedWithWire(Ctor, fieldOrMethodName, descriptor);
         }
         descriptor = internalWireFieldDecorator(fieldOrMethodName);
         wiredFields[fieldOrMethodName] = descriptor;
         storeWiredFieldMeta(descriptor, adapter, configCallback, dynamic);
-        defineProperty(proto, fieldOrMethodName, descriptor);
+        defineProperty$1(proto, fieldOrMethodName, descriptor);
       }
     }
   }
@@ -2625,7 +3305,7 @@ function registerDecorators(Ctor, meta) {
         validateFieldDecoratedWithTrack(Ctor, fieldName, descriptor);
       }
       descriptor = internalTrackDecorator(fieldName);
-      defineProperty(proto, fieldName, descriptor);
+      defineProperty$1(proto, fieldName, descriptor);
     }
   }
   if (!isUndefined$1(fields)) {
@@ -2635,13 +3315,7 @@ function registerDecorators(Ctor, meta) {
       {
         validateObservedField(Ctor, fieldName, descriptor);
       }
-      // [W-9927596] Only mark a field as observed whenever it isn't a duplicated public nor
-      // tracked property. This is only here for backward compatibility purposes.
-      const isDuplicatePublicProp = !isUndefined$1(publicProps) && fieldName in publicProps;
-      const isDuplicateTrackedProp = !isUndefined$1(track) && fieldName in track;
-      if (!isDuplicatePublicProp && !isDuplicateTrackedProp) {
-        observedFields[fieldName] = createObservedFieldPropertyDescriptor(fieldName);
-      }
+      observedFields[fieldName] = createObservedFieldPropertyDescriptor(fieldName);
     }
   }
   setDecoratorsMeta(Ctor, {
@@ -2670,35 +3344,6 @@ function getDecoratorsMeta(Ctor) {
   const meta = signedDecoratorToMetaMap.get(Ctor);
   return isUndefined$1(meta) ? defaultMeta : meta;
 }
-
-/*
- * Copyright (c) 2018, salesforce.com, inc.
- * All rights reserved.
- * SPDX-License-Identifier: MIT
- * For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/MIT
- */
-let warned = false;
-// @ts-ignore
-if ( typeof __karma__ !== 'undefined') {
-  // @ts-ignore
-  window.__lwcResetWarnedOnVersionMismatch = () => {
-    warned = false;
-  };
-}
-function checkVersionMismatch(func, type) {
-  const versionMatcher = func.toString().match(LWC_VERSION_COMMENT_REGEX);
-  if (!isNull(versionMatcher) && !warned) {
-    const version = versionMatcher[1];
-    const [major, minor] = version.split('.');
-    const [expectedMajor, expectedMinor] = LWC_VERSION.split('.');
-    if (major !== expectedMajor || minor !== expectedMinor) {
-      warned = true; // only warn once to avoid flooding the console
-      // stylesheets and templates do not have user-meaningful names, but components do
-      const friendlyName = type === 'component' ? `${type} ${func.name}` : type;
-      logError(`LWC WARNING: current engine is v${LWC_VERSION}, but ${friendlyName} was compiled with v${version}.\nPlease update your compiled code or LWC engine so that the versions match.\nNo further warnings will appear.`);
-    }
-  }
-}
 const signedTemplateSet = new Set();
 function defaultEmptyTemplate() {
   return [];
@@ -2711,13 +3356,11 @@ function isTemplateRegistered(tpl) {
  * INTERNAL: This function can only be invoked by compiled code. The compiler
  * will prevent this function from being imported by userland code.
  */
+
 function registerTemplate(tpl) {
-  {
-    checkVersionMismatch(tpl, 'template');
-  }
-  signedTemplateSet.add(tpl);
-  // chaining this method as a way to wrap existing
+  signedTemplateSet.add(tpl); // chaining this method as a way to wrap existing
   // assignment of templates easily, without too much transformation
+
   return tpl;
 }
 
@@ -2727,12 +3370,12 @@ function registerTemplate(tpl) {
  * SPDX-License-Identifier: MIT
  * For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/MIT
  */
-// A bridge descriptor is a descriptor whose job is just to get the component instance
 // from the element instance, and get the value or set a new value on the component.
 // This means that across different elements, similar names can get the exact same
 // descriptor, so we can cache them:
-const cachedGetterByKey = create(null);
-const cachedSetterByKey = create(null);
+
+const cachedGetterByKey = create$1(null);
+const cachedSetterByKey = create$1(null);
 function createGetter(key) {
   let fn = cachedGetterByKey[key];
   if (isUndefined$1(fn)) {
@@ -2754,7 +3397,7 @@ function createSetter(key) {
       const {
         setHook
       } = vm;
-      newValue = getReadOnlyProxy(newValue);
+      newValue = reactiveMembrane.getReadOnlyProxy(newValue);
       setHook(vm.component, key, newValue);
     };
   }
@@ -2768,35 +3411,7 @@ function createMethodCaller(methodName) {
       component
     } = vm;
     const fn = component[methodName];
-    return callHook(vm.component, fn, ArraySlice.call(arguments));
-  };
-}
-function createAttributeChangedCallback(attributeToPropMap, superAttributeChangedCallback) {
-  return function attributeChangedCallback(attrName, oldValue, newValue) {
-    if (oldValue === newValue) {
-      // Ignore same values.
-      return;
-    }
-    const propName = attributeToPropMap[attrName];
-    if (isUndefined$1(propName)) {
-      if (!isUndefined$1(superAttributeChangedCallback)) {
-        // delegate unknown attributes to the super.
-        // Typescript does not like it when you treat the `arguments` object as an array
-        // @ts-ignore type-mismatch
-        superAttributeChangedCallback.apply(this, arguments);
-      }
-      return;
-    }
-    if (!isAttributeLocked(this, attrName)) {
-      // Ignore changes triggered by the engine itself during:
-      // * diffing when public props are attempting to reflect to the DOM
-      // * component via `this.setAttribute()`, should never update the prop
-      // Both cases, the setAttribute call is always wrapped by the unlocking of the
-      // attribute to be changed
-      return;
-    }
-    // Reflect attribute change to the corresponding property when changed from outside.
-    this[propName] = newValue;
+    return callHook(vm.component, fn, ArraySlice$2.call(arguments));
   };
 }
 function HTMLBridgeElementFactory(SuperClass, props, methods) {
@@ -2810,47 +3425,36 @@ function HTMLBridgeElementFactory(SuperClass, props, methods) {
    * wc.ts relies on the construction path of the bridges to create new
    * fully qualifying web components.
    */
+
   if (isFunction$1(SuperClass)) {
-    HTMLBridgeElement = class extends SuperClass {
-      /*LWC compiler v2.32.1*/
-    };
+    HTMLBridgeElement = class extends SuperClass {};
   } else {
     HTMLBridgeElement = function () {
       // Bridge classes are not supposed to be instantiated directly in
       // browsers that do not support web components.
       throw new TypeError('Illegal constructor');
-    };
-    // prototype inheritance dance
-    setPrototypeOf(HTMLBridgeElement, SuperClass);
-    setPrototypeOf(HTMLBridgeElement.prototype, SuperClass.prototype);
-    defineProperty(HTMLBridgeElement.prototype, 'constructor', {
+    }; // prototype inheritance dance
+
+    setPrototypeOf$1(HTMLBridgeElement, SuperClass);
+    setPrototypeOf$1(HTMLBridgeElement.prototype, SuperClass.prototype);
+    defineProperty$1(HTMLBridgeElement.prototype, 'constructor', {
       writable: true,
       configurable: true,
       value: HTMLBridgeElement
     });
   }
-  // generating the hash table for attributes to avoid duplicate fields and facilitate validation
-  // and false positives in case of inheritance.
-  const attributeToPropMap = create(null);
-  const {
-    attributeChangedCallback: superAttributeChangedCallback
-  } = SuperClass.prototype;
-  const {
-    observedAttributes: superObservedAttributes = []
-  } = SuperClass;
-  const descriptors = create(null);
-  // expose getters and setters for each public props on the new Element Bridge
+  const descriptors = create$1(null); // expose getters and setters for each public props on the new Element Bridge
+
   for (let i = 0, len = props.length; i < len; i += 1) {
     const propName = props[i];
-    attributeToPropMap[htmlPropertyToAttribute(propName)] = propName;
     descriptors[propName] = {
       get: createGetter(propName),
       set: createSetter(propName),
       enumerable: true,
       configurable: true
     };
-  }
-  // expose public methods as props on the new Element Bridge
+  } // expose public methods as props on the new Element Bridge
+
   for (let i = 0, len = methods.length; i < len; i += 1) {
     const methodName = methods[i];
     descriptors[methodName] = {
@@ -2859,26 +3463,12 @@ function HTMLBridgeElementFactory(SuperClass, props, methods) {
       configurable: true
     };
   }
-  // creating a new attributeChangedCallback per bridge because they are bound to the corresponding
-  // map of attributes to props. We do this after all other props and methods to avoid the possibility
-  // of getting overrule by a class declaration in user-land, and we make it non-writable, non-configurable
-  // to preserve this definition.
-  descriptors.attributeChangedCallback = {
-    value: createAttributeChangedCallback(attributeToPropMap, superAttributeChangedCallback)
-  };
-  // Specify attributes for which we want to reflect changes back to their corresponding
-  // properties via attributeChangedCallback.
-  defineProperty(HTMLBridgeElement, 'observedAttributes', {
-    get() {
-      return [...superObservedAttributes, ...keys(attributeToPropMap)];
-    }
-  });
-  defineProperties(HTMLBridgeElement.prototype, descriptors);
+  defineProperties$1(HTMLBridgeElement.prototype, descriptors);
   return HTMLBridgeElement;
 }
 const BaseBridgeElement = HTMLBridgeElementFactory(HTMLElementConstructor, getOwnPropertyNames$1(HTMLElementOriginalDescriptors), []);
-freeze(BaseBridgeElement);
-seal(BaseBridgeElement.prototype);
+freeze$1(BaseBridgeElement);
+seal$1(BaseBridgeElement.prototype);
 
 /*
  * Copyright (c) 2020, salesforce.com, inc.
@@ -2886,106 +3476,11 @@ seal(BaseBridgeElement.prototype);
  * SPDX-License-Identifier: MIT
  * For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/MIT
  */
-const swappedTemplateMap = new WeakMap();
-const swappedComponentMap = new WeakMap();
-const swappedStyleMap = new WeakMap();
-const activeTemplates = new WeakMap();
-const activeComponents = new WeakMap();
-const activeStyles = new WeakMap();
-function getTemplateOrSwappedTemplate(tpl) {
-  const visited = new Set();
-  while (swappedTemplateMap.has(tpl) && !visited.has(tpl)) {
-    visited.add(tpl);
-    tpl = swappedTemplateMap.get(tpl);
-  }
-  return tpl;
+function resolveCircularModuleDependency(fn) {
+  return fn();
 }
-function getComponentOrSwappedComponent(Ctor) {
-  const visited = new Set();
-  while (swappedComponentMap.has(Ctor) && !visited.has(Ctor)) {
-    visited.add(Ctor);
-    Ctor = swappedComponentMap.get(Ctor);
-  }
-  return Ctor;
-}
-function getStyleOrSwappedStyle(style) {
-  const visited = new Set();
-  while (swappedStyleMap.has(style) && !visited.has(style)) {
-    visited.add(style);
-    style = swappedStyleMap.get(style);
-  }
-  return style;
-}
-function setActiveVM(vm) {
-  // tracking active component
-  const Ctor = vm.def.ctor;
-  let componentVMs = activeComponents.get(Ctor);
-  if (isUndefined$1(componentVMs)) {
-    componentVMs = new Set();
-    activeComponents.set(Ctor, componentVMs);
-  }
-  // this will allow us to keep track of the hot components
-  componentVMs.add(vm);
-  // tracking active template
-  const tpl = vm.cmpTemplate;
-  if (tpl) {
-    let templateVMs = activeTemplates.get(tpl);
-    if (isUndefined$1(templateVMs)) {
-      templateVMs = new Set();
-      activeTemplates.set(tpl, templateVMs);
-    }
-    // this will allow us to keep track of the templates that are
-    // being used by a hot component
-    templateVMs.add(vm);
-    // tracking active styles associated to template
-    const stylesheets = tpl.stylesheets;
-    if (!isUndefined$1(stylesheets)) {
-      flattenStylesheets(stylesheets).forEach(stylesheet => {
-        // this is necessary because we don't hold the list of styles
-        // in the vm, we only hold the selected (already swapped template)
-        // but the styles attached to the template might not be the actual
-        // active ones, but the swapped versions of those.
-        stylesheet = getStyleOrSwappedStyle(stylesheet);
-        let stylesheetVMs = activeStyles.get(stylesheet);
-        if (isUndefined$1(stylesheetVMs)) {
-          stylesheetVMs = new Set();
-          activeStyles.set(stylesheet, stylesheetVMs);
-        }
-        // this will allow us to keep track of the stylesheet that are
-        // being used by a hot component
-        stylesheetVMs.add(vm);
-      });
-    }
-  }
-}
-function removeActiveVM(vm) {
-  // tracking inactive component
-  const Ctor = vm.def.ctor;
-  let list = activeComponents.get(Ctor);
-  if (!isUndefined$1(list)) {
-    // deleting the vm from the set to avoid leaking memory
-    list.delete(vm);
-  }
-  // removing inactive template
-  const tpl = vm.cmpTemplate;
-  if (tpl) {
-    list = activeTemplates.get(tpl);
-    if (!isUndefined$1(list)) {
-      // deleting the vm from the set to avoid leaking memory
-      list.delete(vm);
-    }
-    // removing active styles associated to template
-    const styles = tpl.stylesheets;
-    if (!isUndefined$1(styles)) {
-      flattenStylesheets(styles).forEach(style => {
-        list = activeStyles.get(style);
-        if (!isUndefined$1(list)) {
-          // deleting the vm from the set to avoid leaking memory
-          list.delete(vm);
-        }
-      });
-    }
-  }
+function isCircularModuleDependency(obj) {
+  return isFunction$1(obj) && hasOwnProperty$1.call(obj, '__circular__');
 }
 
 /*
@@ -2997,41 +3492,31 @@ function removeActiveVM(vm) {
 const CtorToDefMap = new WeakMap();
 function getCtorProto(Ctor) {
   let proto = getPrototypeOf$1(Ctor);
-  if (isNull(proto)) {
+  if (isNull$1(proto)) {
     throw new ReferenceError(`Invalid prototype chain for ${Ctor.name}, you must extend LightningElement.`);
-  }
-  // covering the cases where the ref is circular in AMD
+  } // covering the cases where the ref is circular in AMD
+
   if (isCircularModuleDependency(proto)) {
     const p = resolveCircularModuleDependency(proto);
     {
-      if (isNull(p)) {
+      if (isNull$1(p)) {
         throw new ReferenceError(`Circular module dependency for ${Ctor.name}, must resolve to a constructor that extends LightningElement.`);
       }
-    }
-    // escape hatch for Locker and other abstractions to provide their own base class instead
+    } // escape hatch for Locker and other abstractions to provide their own base class instead
     // of our Base class without having to leak it to user-land. If the circular function returns
     // itself, that's the signal that we have hit the end of the proto chain, which must always
     // be base.
-    proto = p === proto ? LightningElement : p;
+
+    proto = p === proto ? BaseLightningElement : p;
   }
   return proto;
 }
 function createComponentDef(Ctor) {
-  const {
-    shadowSupportMode: ctorShadowSupportMode,
-    renderMode: ctorRenderMode
-  } = Ctor;
   {
-    const ctorName = Ctor.name;
-    // Removing the following assert until https://bugs.webkit.org/show_bug.cgi?id=190140 is fixed.
+    const ctorName = Ctor.name; // Removing the following assert until https://bugs.webkit.org/show_bug.cgi?id=190140 is fixed.
     // assert.isTrue(ctorName && isString(ctorName), `${toString(Ctor)} should have a "name" property with string value, but found ${ctorName}.`);
-    assert.isTrue(Ctor.constructor, `Missing ${ctorName}.constructor, ${ctorName} should have a "constructor" property.`);
-    if (!isUndefined$1(ctorShadowSupportMode)) {
-      assert.invariant(ctorShadowSupportMode === "any" /* ShadowSupportMode.Any */ || ctorShadowSupportMode === "reset" /* ShadowSupportMode.Default */, `Invalid value for static property shadowSupportMode: '${ctorShadowSupportMode}'`);
-    }
-    if (!isUndefined$1(ctorRenderMode)) {
-      assert.invariant(ctorRenderMode === 'light' || ctorRenderMode === 'shadow', `Invalid value for static property renderMode: '${ctorRenderMode}'. renderMode must be either 'light' or 'shadow'.`);
-    }
+
+    assert$1.isTrue(Ctor.constructor, `Missing ${ctorName}.constructor, ${ctorName} should have a "constructor" property.`);
   }
   const decoratorsMeta = getDecoratorsMeta(Ctor);
   const {
@@ -3051,30 +3536,21 @@ function createComponentDef(Ctor) {
     render
   } = proto;
   const superProto = getCtorProto(Ctor);
-  const superDef = superProto !== LightningElement ? getComponentInternalDef(superProto) : lightingElementDef;
-  const bridge = HTMLBridgeElementFactory(superDef.bridge, keys(apiFields), keys(apiMethods));
-  const props = assign(create(null), superDef.props, apiFields);
-  const propsConfig = assign(create(null), superDef.propsConfig, apiFieldsConfig);
-  const methods = assign(create(null), superDef.methods, apiMethods);
-  const wire = assign(create(null), superDef.wire, wiredFields, wiredMethods);
+  const superDef = superProto !== BaseLightningElement ? getComponentInternalDef(superProto) : lightingElementDef;
+  const bridge = HTMLBridgeElementFactory(superDef.bridge, keys$1(apiFields), keys$1(apiMethods));
+  const props = assign$1(create$1(null), superDef.props, apiFields);
+  const propsConfig = assign$1(create$1(null), superDef.propsConfig, apiFieldsConfig);
+  const methods = assign$1(create$1(null), superDef.methods, apiMethods);
+  const wire = assign$1(create$1(null), superDef.wire, wiredFields, wiredMethods);
   connectedCallback = connectedCallback || superDef.connectedCallback;
   disconnectedCallback = disconnectedCallback || superDef.disconnectedCallback;
   renderedCallback = renderedCallback || superDef.renderedCallback;
   errorCallback = errorCallback || superDef.errorCallback;
   render = render || superDef.render;
-  let shadowSupportMode = superDef.shadowSupportMode;
-  if (!isUndefined$1(ctorShadowSupportMode)) {
-    shadowSupportMode = ctorShadowSupportMode;
-  }
-  let renderMode = superDef.renderMode;
-  if (!isUndefined$1(ctorRenderMode)) {
-    renderMode = ctorRenderMode === 'light' ? 0 /* RenderMode.Light */ : 1 /* RenderMode.Shadow */;
-  }
-
   const template = getComponentRegisteredTemplate(Ctor) || superDef.template;
-  const name = Ctor.name || superDef.name;
-  // installing observed fields into the prototype.
-  defineProperties(proto, observedFields);
+  const name = Ctor.name || superDef.name; // installing observed fields into the prototype.
+
+  defineProperties$1(proto, observedFields);
   const def = {
     ctor: Ctor,
     name,
@@ -3084,8 +3560,6 @@ function createComponentDef(Ctor) {
     methods,
     bridge,
     template,
-    renderMode,
-    shadowSupportMode,
     connectedCallback,
     disconnectedCallback,
     renderedCallback,
@@ -3093,7 +3567,7 @@ function createComponentDef(Ctor) {
     render
   };
   {
-    freeze(Ctor.prototype);
+    freeze$1(Ctor.prototype);
   }
   return def;
 }
@@ -3101,46 +3575,44 @@ function createComponentDef(Ctor) {
  * EXPERIMENTAL: This function allows for the identification of LWC constructors. This API is
  * subject to change or being removed.
  */
+
 function isComponentConstructor(ctor) {
   if (!isFunction$1(ctor)) {
     return false;
-  }
-  // Fast path: LightningElement is part of the prototype chain of the constructor.
-  if (ctor.prototype instanceof LightningElement) {
+  } // Fast path: LightningElement is part of the prototype chain of the constructor.
+
+  if (ctor.prototype instanceof BaseLightningElement) {
     return true;
-  }
-  // Slow path: LightningElement is not part of the prototype chain of the constructor, we need
+  } // Slow path: LightningElement is not part of the prototype chain of the constructor, we need
   // climb up the constructor prototype chain to check in case there are circular dependencies
   // to resolve.
+
   let current = ctor;
   do {
     if (isCircularModuleDependency(current)) {
-      const circularResolved = resolveCircularModuleDependency(current);
-      // If the circular function returns itself, that's the signal that we have hit the end
+      const circularResolved = resolveCircularModuleDependency(current); // If the circular function returns itself, that's the signal that we have hit the end
       // of the proto chain, which must always be a valid base constructor.
+
       if (circularResolved === current) {
         return true;
       }
       current = circularResolved;
     }
-    if (current === LightningElement) {
+    if (current === BaseLightningElement) {
       return true;
     }
-  } while (!isNull(current) && (current = getPrototypeOf$1(current)));
-  // Finally return false if the LightningElement is not part of the prototype chain.
+  } while (!isNull$1(current) && (current = getPrototypeOf$1(current))); // Finally return false if the LightningElement is not part of the prototype chain.
+
   return false;
 }
 function getComponentInternalDef(Ctor) {
-  {
-    Ctor = getComponentOrSwappedComponent(Ctor);
-  }
   let def = CtorToDefMap.get(Ctor);
   if (isUndefined$1(def)) {
     if (isCircularModuleDependency(Ctor)) {
       const resolvedCtor = resolveCircularModuleDependency(Ctor);
-      def = getComponentInternalDef(resolvedCtor);
-      // Cache the unresolved component ctor too. The next time if the same unresolved ctor is used,
+      def = getComponentInternalDef(resolvedCtor); // Cache the unresolved component ctor too. The next time if the same unresolved ctor is used,
       // look up the definition in cache instead of re-resolving and recreating the def.
+
       CtorToDefMap.set(Ctor, def);
       return def;
     }
@@ -3152,23 +3624,26 @@ function getComponentInternalDef(Ctor) {
   }
   return def;
 }
-function getComponentHtmlPrototype(Ctor) {
-  const def = getComponentInternalDef(Ctor);
-  return def.bridge;
+/** Set prototype for public methods and properties on the element. No DOM Patching occurs here. */
+
+function setElementProto(elm, def) {
+  setPrototypeOf$1(elm, def.bridge.prototype);
 }
 const lightingElementDef = {
-  ctor: LightningElement,
-  name: LightningElement.name,
+  ctor: BaseLightningElement,
+  name: BaseLightningElement.name,
   props: lightningBasedDescriptors,
   propsConfig: EmptyObject,
   methods: EmptyObject,
-  renderMode: 1 /* RenderMode.Shadow */,
-  shadowSupportMode: "reset" /* ShadowSupportMode.Default */,
   wire: EmptyObject,
   bridge: BaseBridgeElement,
   template: defaultEmptyTemplate,
-  render: LightningElement.prototype.render
+  render: BaseLightningElement.prototype.render
 };
+var PropDefType;
+(function (PropDefType) {
+  PropDefType["any"] = "any";
+})(PropDefType || (PropDefType = {}));
 
 /*
  * Copyright (c) 2018, salesforce.com, inc.
@@ -3176,1024 +3651,130 @@ const lightingElementDef = {
  * SPDX-License-Identifier: MIT
  * For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/MIT
  */
-function makeHostToken(token) {
-  return `${token}-host`;
+
+const noop = () => void 0;
+function observeElementChildNodes(elm) {
+  elm.$domManual$ = true;
 }
-function createInlineStyleVNode(content) {
-  return api.h('style', {
-    key: 'style',
-    attrs: {
-      type: 'text/css'
-    }
-  }, [api.t(content)]);
+function setElementShadowToken(elm, token) {
+  elm.$shadowToken$ = token;
 }
-function updateStylesheetToken(vm, template) {
+function updateNodeHook(oldVnode, vnode) {
   const {
     elm,
-    context,
-    renderMode,
-    shadowMode,
-    renderer: {
-      getClassList,
-      removeAttribute,
-      setAttribute
-    }
-  } = vm;
-  const {
-    stylesheets: newStylesheets,
-    stylesheetToken: newStylesheetToken
-  } = template;
-  const isSyntheticShadow = renderMode === 1 /* RenderMode.Shadow */ && shadowMode === 1 /* ShadowMode.Synthetic */;
-  const {
-    hasScopedStyles
-  } = context;
-  let newToken;
-  let newHasTokenInClass;
-  let newHasTokenInAttribute;
-  // Reset the styling token applied to the host element.
-  const {
-    stylesheetToken: oldToken,
-    hasTokenInClass: oldHasTokenInClass,
-    hasTokenInAttribute: oldHasTokenInAttribute
-  } = context;
-  if (!isUndefined$1(oldToken)) {
-    if (oldHasTokenInClass) {
-      getClassList(elm).remove(makeHostToken(oldToken));
-    }
-    if (oldHasTokenInAttribute) {
-      removeAttribute(elm, makeHostToken(oldToken));
-    }
-  }
-  // Apply the new template styling token to the host element, if the new template has any
-  // associated stylesheets. In the case of light DOM, also ensure there is at least one scoped stylesheet.
-  if (!isUndefined$1(newStylesheets) && newStylesheets.length !== 0) {
-    newToken = newStylesheetToken;
-  }
-  // Set the new styling token on the host element
-  if (!isUndefined$1(newToken)) {
-    if (hasScopedStyles) {
-      getClassList(elm).add(makeHostToken(newToken));
-      newHasTokenInClass = true;
-    }
-    if (isSyntheticShadow) {
-      setAttribute(elm, makeHostToken(newToken), '');
-      newHasTokenInAttribute = true;
-    }
-  }
-  // Update the styling tokens present on the context object.
-  context.stylesheetToken = newToken;
-  context.hasTokenInClass = newHasTokenInClass;
-  context.hasTokenInAttribute = newHasTokenInAttribute;
-}
-function evaluateStylesheetsContent(stylesheets, stylesheetToken, vm) {
-  const content = [];
-  let root;
-  for (let i = 0; i < stylesheets.length; i++) {
-    let stylesheet = stylesheets[i];
-    if (isArray$1(stylesheet)) {
-      ArrayPush$1.apply(content, evaluateStylesheetsContent(stylesheet, stylesheetToken, vm));
-    } else {
-      {
-        // Check for compiler version mismatch in dev mode only
-        checkVersionMismatch(stylesheet, 'stylesheet');
-        // in dev-mode, we support hot swapping of stylesheet, which means that
-        // the component instance might be attempting to use an old version of
-        // the stylesheet, while internally, we have a replacement for it.
-        stylesheet = getStyleOrSwappedStyle(stylesheet);
-      }
-      const isScopedCss = stylesheet[KEY__SCOPED_CSS];
-      if (lwcRuntimeFlags.DISABLE_LIGHT_DOM_UNSCOPED_CSS) {
-        if (!isScopedCss && vm.renderMode === 0 /* RenderMode.Light */) {
-          logError('Unscoped CSS is not supported in Light DOM. Please use scoped CSS (*.scoped.css) instead of unscoped CSS (*.css).');
-          continue;
-        }
-      }
-      // Apply the scope token only if the stylesheet itself is scoped, or if we're rendering synthetic shadow.
-      const scopeToken = isScopedCss || vm.shadowMode === 1 /* ShadowMode.Synthetic */ && vm.renderMode === 1 /* RenderMode.Shadow */ ? stylesheetToken : undefined;
-      // Use the actual `:host` selector if we're rendering global CSS for light DOM, or if we're rendering
-      // native shadow DOM. Synthetic shadow DOM never uses `:host`.
-      const useActualHostSelector = vm.renderMode === 0 /* RenderMode.Light */ ? !isScopedCss : vm.shadowMode === 0 /* ShadowMode.Native */;
-      // Use the native :dir() pseudoclass only in native shadow DOM. Otherwise, in synthetic shadow,
-      // we use an attribute selector on the host to simulate :dir().
-      let useNativeDirPseudoclass;
-      if (vm.renderMode === 1 /* RenderMode.Shadow */) {
-        useNativeDirPseudoclass = vm.shadowMode === 0 /* ShadowMode.Native */;
-      } else {
-        // Light DOM components should only render `[dir]` if they're inside of a synthetic shadow root.
-        // At the top level (root is null) or inside of a native shadow root, they should use `:dir()`.
-        if (isUndefined$1(root)) {
-          // Only calculate the root once as necessary
-          root = getNearestShadowComponent(vm);
-        }
-        useNativeDirPseudoclass = isNull(root) || root.shadowMode === 0 /* ShadowMode.Native */;
-      }
-
-      ArrayPush$1.call(content, stylesheet(scopeToken, useActualHostSelector, useNativeDirPseudoclass));
-    }
-  }
-  return content;
-}
-function getStylesheetsContent(vm, template) {
-  const {
-    stylesheets,
-    stylesheetToken
-  } = template;
-  let content = [];
-  if (!isUndefined$1(stylesheets) && stylesheets.length !== 0) {
-    content = evaluateStylesheetsContent(stylesheets, stylesheetToken, vm);
-  }
-  return content;
-}
-// It might be worth caching this to avoid doing the lookup repeatedly, but
-// perf testing has not shown it to be a huge improvement yet:
-// https://github.com/salesforce/lwc/pull/2460#discussion_r691208892
-function getNearestShadowComponent(vm) {
-  let owner = vm;
-  while (!isNull(owner)) {
-    if (owner.renderMode === 1 /* RenderMode.Shadow */) {
-      return owner;
-    }
-    owner = owner.owner;
-  }
-  return owner;
-}
-/**
- * If the component that is currently being rendered uses scoped styles,
- * this returns the unique token for that scoped stylesheet. Otherwise
- * it returns null.
- */
-function getScopeTokenClass(owner) {
-  const {
-    cmpTemplate,
-    context
-  } = owner;
-  return context.hasScopedStyles && (cmpTemplate === null || cmpTemplate === void 0 ? void 0 : cmpTemplate.stylesheetToken) || null;
-}
-/**
- * This function returns the host style token for a custom element if it
- * exists. Otherwise it returns null.
- *
- * A host style token is applied to the component if scoped styles are used.
- */
-function getStylesheetTokenHost(vnode) {
-  const {
-    template
-  } = getComponentInternalDef(vnode.ctor);
-  const {
-    stylesheetToken
-  } = template;
-  return !isUndefined$1(stylesheetToken) && computeHasScopedStyles(template) ? makeHostToken(stylesheetToken) : null;
-}
-function getNearestNativeShadowComponent(vm) {
-  const owner = getNearestShadowComponent(vm);
-  if (!isNull(owner) && owner.shadowMode === 1 /* ShadowMode.Synthetic */) {
-    // Synthetic-within-native is impossible. So if the nearest shadow component is
-    // synthetic, we know we won't find a native component if we go any further.
-    return null;
-  }
-  return owner;
-}
-function createStylesheet(vm, stylesheets) {
-  const {
-    renderMode,
-    shadowMode,
-    renderer: {
-      insertStylesheet
-    }
-  } = vm;
-  if (renderMode === 1 /* RenderMode.Shadow */ && shadowMode === 1 /* ShadowMode.Synthetic */) {
-    for (let i = 0; i < stylesheets.length; i++) {
-      insertStylesheet(stylesheets[i]);
-    }
-  } else if (vm.hydrated) {
-    // Note: We need to ensure that during hydration, the stylesheets method is the same as those in ssr.
-    //       This works in the client, because the stylesheets are created, and cached in the VM
-    //       the first time the VM renders.
-    // native shadow or light DOM, SSR
-    return ArrayMap.call(stylesheets, createInlineStyleVNode);
-  } else {
-    // native shadow or light DOM, DOM renderer
-    const root = getNearestNativeShadowComponent(vm);
-    // null root means a global style
-    const target = isNull(root) ? undefined : root.shadowRoot;
-    for (let i = 0; i < stylesheets.length; i++) {
-      insertStylesheet(stylesheets[i], target);
-    }
-  }
-  return null;
-}
-
-/*
- * Copyright (c) 2018, salesforce.com, inc.
- * All rights reserved.
- * SPDX-License-Identifier: MIT
- * For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/MIT
- */
-function isVBaseElement(vnode) {
-  const {
-    type
-  } = vnode;
-  return type === 2 /* VNodeType.Element */ || type === 3 /* VNodeType.CustomElement */;
-}
-
-function isSameVnode(vnode1, vnode2) {
-  return vnode1.key === vnode2.key && vnode1.sel === vnode2.sel;
-}
-function isVCustomElement(vnode) {
-  return vnode.type === 3 /* VNodeType.CustomElement */;
-}
-
-function isVFragment(vnode) {
-  return vnode.type === 5 /* VNodeType.Fragment */;
-}
-
-function isVScopedSlotFragment(vnode) {
-  return vnode.type === 6 /* VNodeType.ScopedSlotFragment */;
-}
-
-/*
- * Copyright (c) 2018, salesforce.com, inc.
- * All rights reserved.
- * SPDX-License-Identifier: MIT
- * For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/MIT
- */
-const ColonCharCode$1 = 58;
-function patchAttributes(oldVnode, vnode, renderer) {
-  const {
-    attrs
-  } = vnode.data;
-  if (isUndefined$1(attrs)) {
-    return;
-  }
-  const oldAttrs = isNull(oldVnode) ? EmptyObject : oldVnode.data.attrs;
-  if (oldAttrs === attrs) {
-    return;
-  }
-  const {
-    elm
-  } = vnode;
-  const {
-    setAttribute,
-    removeAttribute
-  } = renderer;
-  for (const key in attrs) {
-    const cur = attrs[key];
-    const old = oldAttrs[key];
-    if (old !== cur) {
-      unlockAttribute(elm, key);
-      if (StringCharCodeAt.call(key, 3) === ColonCharCode$1) {
-        // Assume xml namespace
-        setAttribute(elm, key, cur, XML_NAMESPACE);
-      } else if (StringCharCodeAt.call(key, 5) === ColonCharCode$1) {
-        // Assume xlink namespace
-        setAttribute(elm, key, cur, XLINK_NAMESPACE);
-      } else if (isNull(cur) || isUndefined$1(cur)) {
-        removeAttribute(elm, key);
-      } else {
-        setAttribute(elm, key, cur);
-      }
-      lockAttribute();
-    }
-  }
-}
-
-/*
- * Copyright (c) 2018, salesforce.com, inc.
- * All rights reserved.
- * SPDX-License-Identifier: MIT
- * For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/MIT
- */
-const ColonCharCode = 58;
-function patchAttrUnlessProp(oldVnode, vnode, renderer) {
-  const {
-    data: {
-      attrs
-    },
-    elm
-  } = vnode;
-  if (isUndefined$1(attrs)) {
-    return;
-  }
-  const {
-    removeAttribute,
-    setAttribute,
-    setProperty
-  } = renderer;
-  const oldAttrs = isNull(oldVnode) ? EmptyObject : oldVnode.data.attrs;
-  for (const name in attrs) {
-    const cur = attrs[name];
-    const old = oldAttrs[name];
-    if (old !== cur) {
-      const propName = htmlAttributeToProperty(name);
-      if (propName in elm) {
-        setProperty(elm, name, cur);
-      } else if (StringCharCodeAt.call(name, 3) === ColonCharCode) {
-        // Assume xml namespace
-        setAttribute(elm, name, cur, XML_NAMESPACE);
-      } else if (StringCharCodeAt.call(name, 5) === ColonCharCode) {
-        // Assume xlink namespace
-        setAttribute(elm, name, cur, XLINK_NAMESPACE);
-      } else if (isNull(cur) || isUndefined$1(cur)) {
-        removeAttribute(elm, name);
-      } else {
-        setAttribute(elm, name, cur);
-      }
-    }
-  }
-}
-
-/*
- * Copyright (c) 2018, salesforce.com, inc.
- * All rights reserved.
- * SPDX-License-Identifier: MIT
- * For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/MIT
- */
-function isLiveBindingProp(sel, key) {
-  // For properties with live bindings, we read values from the DOM element
-  // instead of relying on internally tracked values.
-  return sel === 'input' && (key === 'value' || key === 'checked');
-}
-function patchProps(oldVnode, vnode, renderer) {
-  let {
-    props
-  } = vnode.data;
-  const {
-    spread
-  } = vnode.data;
-  if (isUndefined$1(props) && isUndefined$1(spread)) {
-    return;
-  }
-  let oldProps;
-  if (!isNull(oldVnode)) {
-    oldProps = oldVnode.data.props;
-    const oldSpread = oldVnode.data.spread;
-    if (oldProps === props && oldSpread === spread) {
-      return;
-    }
-    if (isUndefined$1(oldProps)) {
-      oldProps = EmptyObject;
-    }
-    if (!isUndefined$1(oldSpread)) {
-      oldProps = assign({}, oldProps, oldSpread);
-    }
-  }
-  if (!isUndefined$1(spread)) {
-    props = assign({}, props, spread);
-  }
-  const isFirstPatch = isNull(oldVnode);
-  const {
-    elm,
-    sel
-  } = vnode;
-  const {
-    getProperty,
-    setProperty
-  } = renderer;
-  for (const key in props) {
-    const cur = props[key];
-    // Set the property if it's the first time is is patched or if the previous property is
-    // different than the one previously set.
-    if (isFirstPatch || cur !== (isLiveBindingProp(sel, key) ? getProperty(elm, key) : oldProps[key]) || !(key in oldProps) // this is required because the above case will pass when `cur` is `undefined` and key is missing in `oldProps`
-    ) {
-      // Additional verification if properties are supported by the element
-      // Validation relies on html properties and public properties being defined on the element,
-      // SSR has its own custom validation.
-      {
-        if (!(key in elm)) {
-          logWarn(`Unknown public property "${key}" of element <${elm.tagName.toLowerCase()}>. This is either a typo on the corresponding attribute "${htmlPropertyToAttribute(key)}", or the attribute does not exist in this browser or DOM implementation.`);
-        }
-      }
-      setProperty(elm, key, cur);
-    }
-  }
-}
-
-/*
- * Copyright (c) 2018, salesforce.com, inc.
- * All rights reserved.
- * SPDX-License-Identifier: MIT
- * For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/MIT
- */
-const classNameToClassMap = create(null);
-function getMapFromClassName(className) {
-  // Intentionally using == to match undefined and null values from computed style attribute
-  if (className == null) {
-    return EmptyObject;
-  }
-  // computed class names must be string
-  className = isString(className) ? className : className + '';
-  let map = classNameToClassMap[className];
-  if (map) {
-    return map;
-  }
-  map = create(null);
-  let start = 0;
-  let o;
-  const len = className.length;
-  for (o = 0; o < len; o++) {
-    if (StringCharCodeAt.call(className, o) === SPACE_CHAR) {
-      if (o > start) {
-        map[StringSlice.call(className, start, o)] = true;
-      }
-      start = o + 1;
-    }
-  }
-  if (o > start) {
-    map[StringSlice.call(className, start, o)] = true;
-  }
-  classNameToClassMap[className] = map;
-  {
-    // just to make sure that this object never changes as part of the diffing algo
-    freeze(map);
-  }
-  return map;
-}
-function patchClassAttribute(oldVnode, vnode, renderer) {
-  const {
-    elm,
-    data: {
-      className: newClass
+    text,
+    owner: {
+      renderer
     }
   } = vnode;
-  const oldClass = isNull(oldVnode) ? undefined : oldVnode.data.className;
-  if (oldClass === newClass) {
-    return;
-  }
-  const {
-    getClassList
-  } = renderer;
-  const classList = getClassList(elm);
-  const newClassMap = getMapFromClassName(newClass);
-  const oldClassMap = getMapFromClassName(oldClass);
-  let name;
-  for (name in oldClassMap) {
-    // remove only if it is not in the new class collection and it is not set from within the instance
-    if (isUndefined$1(newClassMap[name])) {
-      classList.remove(name);
-    }
-  }
-  for (name in newClassMap) {
-    if (isUndefined$1(oldClassMap[name])) {
-      classList.add(name);
-    }
-  }
-}
-
-/*
- * Copyright (c) 2018, salesforce.com, inc.
- * All rights reserved.
- * SPDX-License-Identifier: MIT
- * For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/MIT
- */
-// The style property is a string when defined via an expression in the template.
-function patchStyleAttribute(oldVnode, vnode, renderer) {
-  const {
-    elm,
-    data: {
-      style: newStyle
-    }
-  } = vnode;
-  const oldStyle = isNull(oldVnode) ? undefined : oldVnode.data.style;
-  if (oldStyle === newStyle) {
-    return;
-  }
-  const {
-    setAttribute,
-    removeAttribute
-  } = renderer;
-  if (!isString(newStyle) || newStyle === '') {
-    removeAttribute(elm, 'style');
-  } else {
-    setAttribute(elm, 'style', newStyle);
-  }
-}
-
-/*
- * Copyright (c) 2018, salesforce.com, inc.
- * All rights reserved.
- * SPDX-License-Identifier: MIT
- * For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/MIT
- */
-function applyEventListeners(vnode, renderer) {
-  const {
-    elm,
-    data: {
-      on
-    }
-  } = vnode;
-  if (isUndefined$1(on)) {
-    return;
-  }
-  const {
-    addEventListener
-  } = renderer;
-  for (const name in on) {
-    const handler = on[name];
-    addEventListener(elm, name, handler);
-  }
-}
-
-/*
- * Copyright (c) 2018, salesforce.com, inc.
- * All rights reserved.
- * SPDX-License-Identifier: MIT
- * For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/MIT
- */
-// The HTML class property becomes the vnode.data.classMap object when defined as a string in the template.
-// The compiler takes care of transforming the inline classnames into an object. It's faster to set the
-// different classnames properties individually instead of via a string.
-function applyStaticClassAttribute(vnode, renderer) {
-  const {
-    elm,
-    data: {
-      classMap
-    }
-  } = vnode;
-  if (isUndefined$1(classMap)) {
-    return;
-  }
-  const {
-    getClassList
-  } = renderer;
-  const classList = getClassList(elm);
-  for (const name in classMap) {
-    classList.add(name);
-  }
-}
-
-/*
- * Copyright (c) 2018, salesforce.com, inc.
- * All rights reserved.
- * SPDX-License-Identifier: MIT
- * For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/MIT
- */
-// The HTML style property becomes the vnode.data.styleDecls object when defined as a string in the template.
-// The compiler takes care of transforming the inline style into an object. It's faster to set the
-// different style properties individually instead of via a string.
-function applyStaticStyleAttribute(vnode, renderer) {
-  const {
-    elm,
-    data: {
-      styleDecls
-    }
-  } = vnode;
-  if (isUndefined$1(styleDecls)) {
-    return;
-  }
-  const {
-    setCSSStyleProperty
-  } = renderer;
-  for (let i = 0; i < styleDecls.length; i++) {
-    const [prop, value, important] = styleDecls[i];
-    setCSSStyleProperty(elm, prop, value, important);
-  }
-}
-
-/*
- * Copyright (c) 2018, salesforce.com, inc.
- * All rights reserved.
- * SPDX-License-Identifier: MIT
- * For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/MIT
- */
-function patchChildren(c1, c2, parent, renderer) {
-  if (hasDynamicChildren(c2)) {
-    updateDynamicChildren(c1, c2, parent, renderer);
-  } else {
-    updateStaticChildren(c1, c2, parent, renderer);
-  }
-}
-function patch(n1, n2, parent, renderer) {
-  var _a, _b;
-  if (n1 === n2) {
-    return;
-  }
-  {
-    if (!isSameVnode(n1, n2)) {
-      throw new Error('Expected these VNodes to be the same: ' + JSON.stringify({
-        sel: n1.sel,
-        key: n1.key
-      }) + ', ' + JSON.stringify({
-        sel: n2.sel,
-        key: n2.key
-      }));
-    }
-  }
-  switch (n2.type) {
-    case 0 /* VNodeType.Text */:
-      // VText has no special capability, fallback to the owner's renderer
-      patchText(n1, n2, renderer);
-      break;
-    case 1 /* VNodeType.Comment */:
-      // VComment has no special capability, fallback to the owner's renderer
-      patchComment(n1, n2, renderer);
-      break;
-    case 4 /* VNodeType.Static */:
-      n2.elm = n1.elm;
-      break;
-    case 5 /* VNodeType.Fragment */:
-      patchFragment(n1, n2, parent, renderer);
-      break;
-    case 2 /* VNodeType.Element */:
-      patchElement(n1, n2, (_a = n2.data.renderer) !== null && _a !== void 0 ? _a : renderer);
-      break;
-    case 3 /* VNodeType.CustomElement */:
-      patchCustomElement(n1, n2, parent, (_b = n2.data.renderer) !== null && _b !== void 0 ? _b : renderer);
-      break;
-  }
-}
-function mount(node, parent, renderer, anchor) {
-  var _a, _b;
-  switch (node.type) {
-    case 0 /* VNodeType.Text */:
-      // VText has no special capability, fallback to the owner's renderer
-      mountText(node, parent, anchor, renderer);
-      break;
-    case 1 /* VNodeType.Comment */:
-      // VComment has no special capability, fallback to the owner's renderer
-      mountComment(node, parent, anchor, renderer);
-      break;
-    case 4 /* VNodeType.Static */:
-      // VStatic cannot have a custom renderer associated to them, using owner's renderer
-      mountStatic(node, parent, anchor, renderer);
-      break;
-    case 5 /* VNodeType.Fragment */:
-      mountFragment(node, parent, anchor, renderer);
-      break;
-    case 2 /* VNodeType.Element */:
-      // If the vnode data has a renderer override use it, else fallback to owner's renderer
-      mountElement(node, parent, anchor, (_a = node.data.renderer) !== null && _a !== void 0 ? _a : renderer);
-      break;
-    case 3 /* VNodeType.CustomElement */:
-      // If the vnode data has a renderer override use it, else fallback to owner's renderer
-      mountCustomElement(node, parent, anchor, (_b = node.data.renderer) !== null && _b !== void 0 ? _b : renderer);
-      break;
-  }
-}
-function patchText(n1, n2, renderer) {
-  n2.elm = n1.elm;
-  if (n2.text !== n1.text) {
-    updateTextContent(n2, renderer);
-  }
-}
-function mountText(vnode, parent, anchor, renderer) {
-  const {
-    owner
-  } = vnode;
-  const {
-    createText
-  } = renderer;
-  const textNode = vnode.elm = createText(vnode.text);
-  linkNodeToShadow(textNode, owner, renderer);
-  insertNode(textNode, parent, anchor, renderer);
-}
-function patchComment(n1, n2, renderer) {
-  n2.elm = n1.elm;
-  // FIXME: Comment nodes should be static, we shouldn't need to diff them together. However
-  // it is the case today.
-  if (n2.text !== n1.text) {
-    updateTextContent(n2, renderer);
-  }
-}
-function mountComment(vnode, parent, anchor, renderer) {
-  const {
-    owner
-  } = vnode;
-  const {
-    createComment
-  } = renderer;
-  const commentNode = vnode.elm = createComment(vnode.text);
-  linkNodeToShadow(commentNode, owner, renderer);
-  insertNode(commentNode, parent, anchor, renderer);
-}
-function mountFragment(vnode, parent, anchor, renderer) {
-  const {
-    children
-  } = vnode;
-  mountVNodes(children, parent, renderer, anchor);
-  // children of a fragment will always have at least the two delimiters.
-  vnode.elm = children[children.length - 1].elm;
-}
-function patchFragment(n1, n2, parent, renderer) {
-  const {
-    children,
-    stable
-  } = n2;
-  if (stable) {
-    updateStaticChildren(n1.children, children, parent, renderer);
-  } else {
-    updateDynamicChildren(n1.children, children, parent, renderer);
-  }
-  // Note: not reusing n1.elm, because during patching, it may be patched with another text node.
-  n2.elm = children[children.length - 1].elm;
-}
-function mountElement(vnode, parent, anchor, renderer) {
-  const {
-    sel,
-    owner,
-    data: {
-      svg
-    }
-  } = vnode;
-  const {
-    createElement
-  } = renderer;
-  const namespace = isTrue(svg) ? SVG_NAMESPACE : undefined;
-  const elm = vnode.elm = createElement(sel, namespace);
-  linkNodeToShadow(elm, owner, renderer);
-  applyStyleScoping(elm, owner, renderer);
-  applyDomManual(elm, vnode);
-  applyElementRestrictions(elm, vnode);
-  patchElementPropsAndAttrs$1(null, vnode, renderer);
-  insertNode(elm, parent, anchor, renderer);
-  mountVNodes(vnode.children, elm, renderer, null);
-}
-function patchElement(n1, n2, renderer) {
-  const elm = n2.elm = n1.elm;
-  patchElementPropsAndAttrs$1(n1, n2, renderer);
-  patchChildren(n1.children, n2.children, elm, renderer);
-}
-function mountStatic(vnode, parent, anchor, renderer) {
-  const {
-    owner
-  } = vnode;
-  const {
-    cloneNode,
-    isSyntheticShadowDefined
-  } = renderer;
-  const elm = vnode.elm = cloneNode(vnode.fragment, true);
-  linkNodeToShadow(elm, owner, renderer);
-  applyElementRestrictions(elm, vnode);
-  // Marks this node as Static to propagate the shadow resolver. must happen after elm is assigned to the proper shadow
-  const {
-    renderMode,
-    shadowMode
-  } = owner;
-  if (isSyntheticShadowDefined) {
-    if (shadowMode === 1 /* ShadowMode.Synthetic */ || renderMode === 0 /* RenderMode.Light */) {
-      elm[KEY__SHADOW_STATIC] = true;
-    }
-  }
-  insertNode(elm, parent, anchor, renderer);
-}
-function mountCustomElement(vnode, parent, anchor, renderer) {
-  const {
-    sel,
-    owner
-  } = vnode;
-  const {
-    createCustomElement
-  } = renderer;
-  /**
-   * Note: if the upgradable constructor does not expect, or throw when we new it
-   * with a callback as the first argument, we could implement a more advanced
-   * mechanism that only passes that argument if the constructor is known to be
-   * an upgradable custom element.
-   */
-  let vm;
-  const upgradeCallback = elm => {
-    // the custom element from the registry is expecting an upgrade callback
-    vm = createViewModelHook(elm, vnode, renderer);
-  };
-  let connectedCallback;
-  let disconnectedCallback;
-  if (lwcRuntimeFlags.ENABLE_NATIVE_CUSTOM_ELEMENT_LIFECYCLE) {
-    connectedCallback = elm => {
-      connectRootElement(elm);
-    };
-    disconnectedCallback = elm => {
-      disconnectRootElement(elm);
-    };
-  }
-  // Should never get a tag with upper case letter at this point; the compiler
-  // should produce only tags with lowercase letters. However, the Java
-  // compiler may generate tagnames with uppercase letters so - for backwards
-  // compatibility, we lower case the tagname here.
-  const normalizedTagname = sel.toLowerCase();
-  const elm = createCustomElement(normalizedTagname, upgradeCallback, connectedCallback, disconnectedCallback);
-  vnode.elm = elm;
-  vnode.vm = vm;
-  linkNodeToShadow(elm, owner, renderer);
-  applyStyleScoping(elm, owner, renderer);
-  if (vm) {
-    allocateChildren(vnode, vm);
-  }
-  patchElementPropsAndAttrs$1(null, vnode, renderer);
-  insertNode(elm, parent, anchor, renderer);
-  if (vm) {
+  if (oldVnode.text !== text) {
     {
-      if (!lwcRuntimeFlags.ENABLE_NATIVE_CUSTOM_ELEMENT_LIFECYCLE) {
-        {
-          // With synthetic lifecycle callbacks, it's possible for elements to be removed without the engine
-          // noticing it (e.g. `appendChild` the same host element twice). This test ensures we don't regress.
-          assert.isTrue(vm.state === 0 /* VMState.created */, `${vm} cannot be recycled.`);
-        }
-        runConnectedCallback(vm);
-      }
+      unlockDomMutation();
     }
-  }
-  mountVNodes(vnode.children, elm, renderer, null);
-  if (vm) {
-    appendVM(vm);
-  }
-}
-function patchCustomElement(n1, n2, parent, renderer) {
-  if (n1.ctor !== n2.ctor) {
-    // If the constructor, unmount the current component and mount a new one using the new
-    // constructor.
-    const anchor = renderer.nextSibling(n1.elm);
-    unmount(n1, parent, renderer, true);
-    mountCustomElement(n2, parent, anchor, renderer);
-  } else {
-    // Otherwise patch the existing component with new props/attrs/etc.
-    const elm = n2.elm = n1.elm;
-    const vm = n2.vm = n1.vm;
-    patchElementPropsAndAttrs$1(n1, n2, renderer);
-    if (!isUndefined$1(vm)) {
-      // in fallback mode, the allocation will always set children to
-      // empty and delegate the real allocation to the slot elements
-      allocateChildren(n2, vm);
-    }
-    // in fallback mode, the children will be always empty, so, nothing
-    // will happen, but in native, it does allocate the light dom
-    patchChildren(n1.children, n2.children, elm, renderer);
-    if (!isUndefined$1(vm)) {
-      // this will probably update the shadowRoot, but only if the vm is in a dirty state
-      // this is important to preserve the top to bottom synchronous rendering phase.
-      rerenderVM(vm);
+    renderer.setText(elm, text);
+    {
+      lockDomMutation();
     }
   }
 }
-function mountVNodes(vnodes, parent, renderer, anchor, start = 0, end = vnodes.length) {
-  for (; start < end; ++start) {
-    const vnode = vnodes[start];
-    if (isVNode(vnode)) {
-      mount(vnode, parent, renderer, anchor);
-    }
-  }
-}
-function unmount(vnode, parent, renderer, doRemove = false) {
+function insertNodeHook(vnode, parentNode, referenceNode) {
   const {
-    type,
-    elm,
-    sel
+    renderer
+  } = vnode.owner;
+  {
+    unlockDomMutation();
+  }
+  renderer.insert(vnode.elm, parentNode, referenceNode);
+  {
+    lockDomMutation();
+  }
+}
+function removeNodeHook(vnode, parentNode) {
+  const {
+    renderer
+  } = vnode.owner;
+  {
+    unlockDomMutation();
+  }
+  renderer.remove(vnode.elm, parentNode);
+  {
+    lockDomMutation();
+  }
+}
+function createElmHook(vnode) {
+  modEvents.create(vnode); // Attrs need to be applied to element before props
+  // IE11 will wipe out value on radio inputs if value
+  // is set before type=radio.
+
+  modAttrs.create(vnode);
+  modProps.create(vnode);
+  modStaticClassName.create(vnode);
+  modStaticStyle.create(vnode);
+  modComputedClassName.create(vnode);
+  modComputedStyle.create(vnode);
+}
+var LWCDOMMode;
+(function (LWCDOMMode) {
+  LWCDOMMode["manual"] = "manual";
+})(LWCDOMMode || (LWCDOMMode = {}));
+function fallbackElmHook(elm, vnode) {
+  const {
+    owner
   } = vnode;
-  // When unmounting a VNode subtree not all the elements have to removed from the DOM. The
-  // subtree root, is the only element worth unmounting from the subtree.
-  if (doRemove) {
-    if (type === 5 /* VNodeType.Fragment */) {
-      unmountVNodes(vnode.children, parent, renderer, doRemove);
-    } else {
-      // The vnode might or might not have a data.renderer associated to it
-      // but the removal used here is from the owner instead.
-      removeNode(elm, parent, renderer);
-    }
-  }
-  switch (type) {
-    case 2 /* VNodeType.Element */:
-      {
-        // Slot content is removed to trigger slotchange event when removing slot.
-        // Only required for synthetic shadow.
-        const shouldRemoveChildren = sel === 'slot' && vnode.owner.shadowMode === 1 /* ShadowMode.Synthetic */;
-        unmountVNodes(vnode.children, elm, renderer, shouldRemoveChildren);
-        break;
-      }
-    case 3 /* VNodeType.CustomElement */:
-      {
-        const {
-          vm
-        } = vnode;
-        // No need to unmount the children here, `removeVM` will take care of removing the
-        // children.
-        if (!isUndefined$1(vm)) {
-          removeVM(vm);
-        }
-      }
-  }
-}
-function unmountVNodes(vnodes, parent, renderer, doRemove = false, start = 0, end = vnodes.length) {
-  for (; start < end; ++start) {
-    const ch = vnodes[start];
-    if (isVNode(ch)) {
-      unmount(ch, parent, renderer, doRemove);
-    }
-  }
-}
-function isVNode(vnode) {
-  return vnode != null;
-}
-function linkNodeToShadow(elm, owner, renderer) {
-  const {
-    renderRoot,
-    renderMode,
-    shadowMode
-  } = owner;
-  const {
-    isSyntheticShadowDefined
-  } = renderer;
-  // TODO [#1164]: this should eventually be done by the polyfill directly
-  if (isSyntheticShadowDefined) {
-    if (shadowMode === 1 /* ShadowMode.Synthetic */ || renderMode === 0 /* RenderMode.Light */) {
-      elm[KEY__SHADOW_RESOLVER] = renderRoot[KEY__SHADOW_RESOLVER];
-    }
-  }
-}
-function updateTextContent(vnode, renderer) {
-  const {
-    elm,
-    text
-  } = vnode;
-  const {
-    setText
-  } = renderer;
-  {
-    unlockDomMutation();
-  }
-  setText(elm, text);
-  {
-    lockDomMutation();
-  }
-}
-function insertNode(node, parent, anchor, renderer) {
-  {
-    unlockDomMutation();
-  }
-  renderer.insert(node, parent, anchor);
-  {
-    lockDomMutation();
-  }
-}
-function removeNode(node, parent, renderer) {
-  {
-    unlockDomMutation();
-  }
-  renderer.remove(node, parent);
-  {
-    lockDomMutation();
-  }
-}
-function patchElementPropsAndAttrs$1(oldVnode, vnode, renderer) {
-  if (isNull(oldVnode)) {
-    applyEventListeners(vnode, renderer);
-    applyStaticClassAttribute(vnode, renderer);
-    applyStaticStyleAttribute(vnode, renderer);
-  }
-  // Attrs need to be applied to element before props IE11 will wipe out value on radio inputs if
-  // value is set before type=radio.
-  patchClassAttribute(oldVnode, vnode, renderer);
-  patchStyleAttribute(oldVnode, vnode, renderer);
-  if (vnode.data.external) {
-    patchAttrUnlessProp(oldVnode, vnode, renderer);
-  } else {
-    patchAttributes(oldVnode, vnode, renderer);
-  }
-  patchProps(oldVnode, vnode, renderer);
-}
-function applyStyleScoping(elm, owner, renderer) {
-  // Set the class name for `*.scoped.css` style scoping.
-  const scopeToken = getScopeTokenClass(owner);
-  if (!isNull(scopeToken)) {
+  if (isTrue$1$1(owner.renderer.syntheticShadow)) {
     const {
-      getClassList
-    } = renderer;
-    // TODO [#2762]: this dot notation with add is probably problematic
-    // probably we should have a renderer api for just the add operation
-    getClassList(elm).add(scopeToken);
+      data: {
+        context
+      }
+    } = vnode;
+    const {
+      shadowAttribute
+    } = owner.context;
+    if (!isUndefined$1(context) && !isUndefined$1(context.lwc) && context.lwc.dom === LWCDOMMode.manual) {
+      // this element will now accept any manual content inserted into it
+      observeElementChildNodes(elm);
+    } // when running in synthetic shadow mode, we need to set the shadowToken value
+    // into each element from the template, so they can be styled accordingly.
+
+    setElementShadowToken(elm, shadowAttribute);
   }
-  // Set property element for synthetic shadow DOM style scoping.
-  const {
-    stylesheetToken: syntheticToken
-  } = owner.context;
-  if (owner.shadowMode === 1 /* ShadowMode.Synthetic */ && !isUndefined$1(syntheticToken)) {
-    elm.$shadowToken$ = syntheticToken;
-  }
-}
-function applyDomManual(elm, vnode) {
-  var _a;
-  const {
-    owner,
-    data: {
-      context
-    }
-  } = vnode;
-  if (owner.shadowMode === 1 /* ShadowMode.Synthetic */ && ((_a = context === null || context === void 0 ? void 0 : context.lwc) === null || _a === void 0 ? void 0 : _a.dom) === "manual" /* LwcDomMode.Manual */) {
-    elm.$domManual$ = true;
-  }
-}
-function applyElementRestrictions(elm, vnode) {
-  var _a, _b;
   {
-    const isSynthetic = vnode.owner.shadowMode === 1 /* ShadowMode.Synthetic */;
-    const isPortal = vnode.type === 2 /* VNodeType.Element */ && ((_b = (_a = vnode.data.context) === null || _a === void 0 ? void 0 : _a.lwc) === null || _b === void 0 ? void 0 : _b.dom) === "manual" /* LwcDomMode.Manual */;
-    const isLight = vnode.owner.renderMode === 0 /* RenderMode.Light */;
+    const {
+      data: {
+        context
+      }
+    } = vnode;
+    const isPortal = !isUndefined$1(context) && !isUndefined$1(context.lwc) && context.lwc.dom === LWCDOMMode.manual;
     patchElementWithRestrictions(elm, {
-      isPortal,
-      isLight,
-      isSynthetic
+      isPortal
     });
   }
 }
-function allocateChildren(vnode, vm) {
-  // A component with slots will re-render because:
+function updateElmHook(oldVnode, vnode) {
+  // Attrs need to be applied to element before props
+  // IE11 will wipe out value on radio inputs if value
+  // is set before type=radio.
+  modAttrs.update(oldVnode, vnode);
+  modProps.update(oldVnode, vnode);
+  modComputedClassName.update(oldVnode, vnode);
+  modComputedStyle.update(oldVnode, vnode);
+}
+function insertCustomElmHook(vnode) {
+  const vm = getAssociatedVM(vnode.elm);
+  appendVM(vm);
+}
+function updateChildrenHook(oldVnode, vnode) {
+  const {
+    children,
+    owner
+  } = vnode;
+  const fn = hasDynamicChildren(children) ? updateDynamicChildren : updateStaticChildren;
+  runWithBoundaryProtection(owner, owner.owner, noop, () => {
+    fn(vnode.elm, oldVnode.children, children);
+  }, noop);
+}
+function allocateChildrenHook(vnode) {
+  const vm = getAssociatedVM(vnode.elm); // A component with slots will re-render because:
   // 1- There is a change of the internal state.
   // 2- There is a change on the external api (ex: slots)
   //
@@ -4203,36 +3784,24 @@ function allocateChildren(vnode, vm) {
   // For those cases, we will use the reference for allocated children stored when rendering the fresh VCustomElement.
   //
   // In case #2, we will always get a fresh VCustomElement.
+
   const children = vnode.aChildren || vnode.children;
   vm.aChildren = children;
-  const {
-    renderMode,
-    shadowMode
-  } = vm;
-  {
-    // If any of the children being allocated is a scoped slot fragment, make sure the receiving
-    // component is a light DOM component. This is mainly to validate light dom parent running
-    // in native shadow mode.
-    if (renderMode !== 0 /* RenderMode.Light */ && ArraySome.call(children, child => !isNull(child) && isVScopedSlotFragment(child))) {
-      logError(`Invalid usage of 'lwc:slot-data' on ${getComponentTag(vm)} tag. Scoped slot content can only be passed to a light dom child.`);
-    }
-  }
-  if (shadowMode === 1 /* ShadowMode.Synthetic */ || renderMode === 0 /* RenderMode.Light */) {
+  if (isTrue$1$1(vm.renderer.syntheticShadow)) {
     // slow path
-    allocateInSlot(vm, children, vnode.owner);
-    // save the allocated children in case this vnode is reused.
-    vnode.aChildren = children;
-    // every child vnode is now allocated, and the host should receive none directly, it receives them via the shadow!
+    allocateInSlot(vm, children); // save the allocated children in case this vnode is reused.
+
+    vnode.aChildren = children; // every child vnode is now allocated, and the host should receive none directly, it receives them via the shadow!
+
     vnode.children = EmptyArray;
   }
 }
-function createViewModelHook(elm, vnode, renderer) {
-  let vm = getAssociatedVMIfPresent(elm);
-  // There is a possibility that a custom element is registered under tagName, in which case, the
-  // initialization is already carry on, and there is nothing else to do here since this hook is
-  // called right after invoking `document.createElement`.
-  if (!isUndefined$1(vm)) {
-    return vm;
+function createViewModelHook(elm, vnode) {
+  if (!isUndefined$1(getAssociatedVMIfPresent(elm))) {
+    // There is a possibility that a custom element is registered under tagName,
+    // in which case, the initialization is already carry on, and there is nothing else
+    // to do here since this hook is called right after invoking `document.createElement`.
+    return;
   }
   const {
     sel,
@@ -4240,236 +3809,96 @@ function createViewModelHook(elm, vnode, renderer) {
     ctor,
     owner
   } = vnode;
-  vm = createVM(elm, ctor, renderer, {
+  const def = getComponentInternalDef(ctor);
+  setElementProto(elm, def);
+  if (isTrue$1$1(owner.renderer.syntheticShadow)) {
+    const {
+      shadowAttribute
+    } = owner.context; // when running in synthetic shadow mode, we need to set the shadowToken value
+    // into each element from the template, so they can be styled accordingly.
+
+    setElementShadowToken(elm, shadowAttribute);
+  }
+  createVM(elm, def, {
     mode,
     owner,
-    tagName: sel
+    tagName: sel,
+    renderer: owner.renderer
   });
   {
-    assert.isTrue(isArray$1(vnode.children), `Invalid vnode for a custom element, it must have children defined.`);
-  }
-  return vm;
-}
-/**
- * Collects all slots into a SlotSet, traversing through VFragment Nodes
- */
-function collectSlots(vm, children, cmpSlotsMapping) {
-  var _a, _b;
-  for (let i = 0, len = children.length; i < len; i += 1) {
-    const vnode = children[i];
-    if (isNull(vnode)) {
-      continue;
-    }
-    // Dive further iff the content is wrapped in a VFragment
-    if (isVFragment(vnode)) {
-      // Remove the text delimiter nodes to avoid overriding default slot content
-      collectSlots(vm, vnode.children.slice(1, -1), cmpSlotsMapping);
-      continue;
-    }
-    let slotName = '';
-    if (isVBaseElement(vnode)) {
-      slotName = (_b = (_a = vnode.data.attrs) === null || _a === void 0 ? void 0 : _a.slot) !== null && _b !== void 0 ? _b : '';
-    } else if (isVScopedSlotFragment(vnode)) {
-      slotName = vnode.slotName;
-    }
-    const vnodes = cmpSlotsMapping[slotName] = cmpSlotsMapping[slotName] || [];
-    ArrayPush$1.call(vnodes, vnode);
+    assert$1.isTrue(isArray$2(vnode.children), `Invalid vnode for a custom element, it must have children defined.`);
   }
 }
-function allocateInSlot(vm, children, owner) {
+function createCustomElmHook(vnode) {
+  modEvents.create(vnode); // Attrs need to be applied to element before props
+  // IE11 will wipe out value on radio inputs if value
+  // is set before type=radio.
+
+  modAttrs.create(vnode);
+  modProps.create(vnode);
+  modStaticClassName.create(vnode);
+  modStaticStyle.create(vnode);
+  modComputedClassName.create(vnode);
+  modComputedStyle.create(vnode);
+}
+function createChildrenHook(vnode) {
   const {
-    cmpSlots: {
-      slotAssignments: oldSlotsMapping
-    }
-  } = vm;
-  const cmpSlotsMapping = create(null);
-  collectSlots(vm, children, cmpSlotsMapping);
-  vm.cmpSlots = {
-    owner,
-    slotAssignments: cmpSlotsMapping
-  };
-  if (isFalse(vm.isDirty)) {
-    // We need to determine if the old allocation is really different from the new one
-    // and mark the vm as dirty
-    const oldKeys = keys(oldSlotsMapping);
-    if (oldKeys.length !== keys(cmpSlotsMapping).length) {
-      markComponentAsDirty(vm);
-      return;
-    }
-    for (let i = 0, len = oldKeys.length; i < len; i += 1) {
-      const key = oldKeys[i];
-      if (isUndefined$1(cmpSlotsMapping[key]) || oldSlotsMapping[key].length !== cmpSlotsMapping[key].length) {
-        markComponentAsDirty(vm);
-        return;
-      }
-      const oldVNodes = oldSlotsMapping[key];
-      const vnodes = cmpSlotsMapping[key];
-      for (let j = 0, a = cmpSlotsMapping[key].length; j < a; j += 1) {
-        if (oldVNodes[j] !== vnodes[j]) {
-          markComponentAsDirty(vm);
-          return;
-        }
-      }
+    elm,
+    children
+  } = vnode;
+  for (let j = 0; j < children.length; ++j) {
+    const ch = children[j];
+    if (ch != null) {
+      ch.hook.create(ch);
+      ch.hook.insert(ch, elm, null);
     }
   }
 }
-// Using a WeakMap instead of a WeakSet because this one works in IE11 :(
-const FromIteration = new WeakMap();
-// dynamic children means it was generated by an iteration
+function rerenderCustomElmHook(vnode) {
+  const vm = getAssociatedVM(vnode.elm);
+  {
+    assert$1.isTrue(isArray$2(vnode.children), `Invalid vnode for a custom element, it must have children defined.`);
+  }
+  rerenderVM(vm);
+}
+function updateCustomElmHook(oldVnode, vnode) {
+  // Attrs need to be applied to element before props
+  // IE11 will wipe out value on radio inputs if value
+  // is set before type=radio.
+  modAttrs.update(oldVnode, vnode);
+  modProps.update(oldVnode, vnode);
+  modComputedClassName.update(oldVnode, vnode);
+  modComputedStyle.update(oldVnode, vnode);
+}
+function removeElmHook(vnode) {
+  // this method only needs to search on child vnodes from template
+  // to trigger the remove hook just in case some of those children
+  // are custom elements.
+  const {
+    children,
+    elm
+  } = vnode;
+  for (let j = 0, len = children.length; j < len; ++j) {
+    const ch = children[j];
+    if (!isNull$1(ch)) {
+      ch.hook.remove(ch, elm);
+    }
+  }
+}
+function removeCustomElmHook(vnode) {
+  // for custom elements we don't have to go recursively because the removeVM routine
+  // will take care of disconnecting any child VM attached to its shadow as well.
+  removeVM(getAssociatedVM(vnode.elm));
+} // Using a WeakMap instead of a WeakSet because this one works in IE11 :(
+
+const FromIteration = new WeakMap(); // dynamic children means it was generated by an iteration
 // in a template, and will require a more complex diffing algo.
+
 function markAsDynamicChildren(children) {
   FromIteration.set(children, 1);
 }
 function hasDynamicChildren(children) {
   return FromIteration.has(children);
-}
-function createKeyToOldIdx(children, beginIdx, endIdx) {
-  const map = {};
-  // TODO [#1637]: simplify this by assuming that all vnodes has keys
-  for (let j = beginIdx; j <= endIdx; ++j) {
-    const ch = children[j];
-    if (isVNode(ch)) {
-      const {
-        key
-      } = ch;
-      if (key !== undefined) {
-        map[key] = j;
-      }
-    }
-  }
-  return map;
-}
-function updateDynamicChildren(oldCh, newCh, parent, renderer) {
-  let oldStartIdx = 0;
-  let newStartIdx = 0;
-  let oldEndIdx = oldCh.length - 1;
-  let oldStartVnode = oldCh[0];
-  let oldEndVnode = oldCh[oldEndIdx];
-  const newChEnd = newCh.length - 1;
-  let newEndIdx = newChEnd;
-  let newStartVnode = newCh[0];
-  let newEndVnode = newCh[newEndIdx];
-  let oldKeyToIdx;
-  let idxInOld;
-  let elmToMove;
-  let before;
-  let clonedOldCh = false;
-  while (oldStartIdx <= oldEndIdx && newStartIdx <= newEndIdx) {
-    if (!isVNode(oldStartVnode)) {
-      oldStartVnode = oldCh[++oldStartIdx]; // Vnode might have been moved left
-    } else if (!isVNode(oldEndVnode)) {
-      oldEndVnode = oldCh[--oldEndIdx];
-    } else if (!isVNode(newStartVnode)) {
-      newStartVnode = newCh[++newStartIdx];
-    } else if (!isVNode(newEndVnode)) {
-      newEndVnode = newCh[--newEndIdx];
-    } else if (isSameVnode(oldStartVnode, newStartVnode)) {
-      patch(oldStartVnode, newStartVnode, parent, renderer);
-      oldStartVnode = oldCh[++oldStartIdx];
-      newStartVnode = newCh[++newStartIdx];
-    } else if (isSameVnode(oldEndVnode, newEndVnode)) {
-      patch(oldEndVnode, newEndVnode, parent, renderer);
-      oldEndVnode = oldCh[--oldEndIdx];
-      newEndVnode = newCh[--newEndIdx];
-    } else if (isSameVnode(oldStartVnode, newEndVnode)) {
-      // Vnode moved right
-      patch(oldStartVnode, newEndVnode, parent, renderer);
-      insertNode(oldStartVnode.elm, parent, renderer.nextSibling(oldEndVnode.elm), renderer);
-      oldStartVnode = oldCh[++oldStartIdx];
-      newEndVnode = newCh[--newEndIdx];
-    } else if (isSameVnode(oldEndVnode, newStartVnode)) {
-      // Vnode moved left
-      patch(oldEndVnode, newStartVnode, parent, renderer);
-      insertNode(newStartVnode.elm, parent, oldStartVnode.elm, renderer);
-      oldEndVnode = oldCh[--oldEndIdx];
-      newStartVnode = newCh[++newStartIdx];
-    } else {
-      if (oldKeyToIdx === undefined) {
-        oldKeyToIdx = createKeyToOldIdx(oldCh, oldStartIdx, oldEndIdx);
-      }
-      idxInOld = oldKeyToIdx[newStartVnode.key];
-      if (isUndefined$1(idxInOld)) {
-        // New element
-        mount(newStartVnode, parent, renderer, oldStartVnode.elm);
-        newStartVnode = newCh[++newStartIdx];
-      } else {
-        elmToMove = oldCh[idxInOld];
-        if (isVNode(elmToMove)) {
-          if (elmToMove.sel !== newStartVnode.sel) {
-            // New element
-            mount(newStartVnode, parent, renderer, oldStartVnode.elm);
-          } else {
-            patch(elmToMove, newStartVnode, parent, renderer);
-            // Delete the old child, but copy the array since it is read-only.
-            // The `oldCh` will be GC'ed after `updateDynamicChildren` is complete,
-            // so we only care about the `oldCh` object inside this function.
-            // To avoid cloning over and over again, we check `clonedOldCh`
-            // and only clone once.
-            if (!clonedOldCh) {
-              clonedOldCh = true;
-              oldCh = [...oldCh];
-            }
-            // We've already cloned at least once, so it's no longer read-only
-            oldCh[idxInOld] = undefined;
-            insertNode(elmToMove.elm, parent, oldStartVnode.elm, renderer);
-          }
-        }
-        newStartVnode = newCh[++newStartIdx];
-      }
-    }
-  }
-  if (oldStartIdx <= oldEndIdx || newStartIdx <= newEndIdx) {
-    if (oldStartIdx > oldEndIdx) {
-      // There's some cases in which the sub array of vnodes to be inserted is followed by null(s) and an
-      // already processed vnode, in such cases the vnodes to be inserted should be before that processed vnode.
-      let i = newEndIdx;
-      let n;
-      do {
-        n = newCh[++i];
-      } while (!isVNode(n) && i < newChEnd);
-      before = isVNode(n) ? n.elm : null;
-      mountVNodes(newCh, parent, renderer, before, newStartIdx, newEndIdx + 1);
-    } else {
-      unmountVNodes(oldCh, parent, renderer, true, oldStartIdx, oldEndIdx + 1);
-    }
-  }
-}
-function updateStaticChildren(c1, c2, parent, renderer) {
-  const c1Length = c1.length;
-  const c2Length = c2.length;
-  if (c1Length === 0) {
-    // the old list is empty, we can directly insert anything new
-    mountVNodes(c2, parent, renderer, null);
-    return;
-  }
-  if (c2Length === 0) {
-    // the old list is nonempty and the new list is empty so we can directly remove all old nodes
-    // this is the case in which the dynamic children of an if-directive should be removed
-    unmountVNodes(c1, parent, renderer, true);
-    return;
-  }
-  // if the old list is not empty, the new list MUST have the same
-  // amount of nodes, that's why we call this static children
-  let anchor = null;
-  for (let i = c2Length - 1; i >= 0; i -= 1) {
-    const n1 = c1[i];
-    const n2 = c2[i];
-    if (n2 !== n1) {
-      if (isVNode(n1)) {
-        if (isVNode(n2)) {
-          // both vnodes are equivalent, and we just need to patch them
-          patch(n1, n2, parent, renderer);
-          anchor = n2.elm;
-        } else {
-          // removing the old vnode since the new one is null
-          unmount(n1, parent, renderer, true);
-        }
-      } else if (isVNode(n2)) {
-        mount(n2, parent, renderer, anchor);
-        anchor = n2.elm;
-      }
-    }
-  }
 }
 
 /*
@@ -4478,89 +3907,177 @@ function updateStaticChildren(c1, c2, parent, renderer) {
  * SPDX-License-Identifier: MIT
  * For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/MIT
  */
+const CHAR_S = 115;
+const CHAR_V = 118;
+const CHAR_G = 103;
+const NamespaceAttributeForSVG = 'http://www.w3.org/2000/svg';
 const SymbolIterator = Symbol.iterator;
+const TextHook = {
+  create: vnode => {
+    const {
+      renderer
+    } = vnode.owner;
+    const elm = renderer.createText(vnode.text);
+    linkNodeToShadow(elm, vnode);
+    vnode.elm = elm;
+  },
+  update: updateNodeHook,
+  insert: insertNodeHook,
+  move: insertNodeHook,
+  remove: removeNodeHook
+}; // insert is called after update, which is used somewhere else (via a module)
+// to mark the vm as inserted, that means we cannot use update as the main channel
+// to rehydrate when dirty, because sometimes the element is not inserted just yet,
+// which breaks some invariants. For that reason, we have the following for any
+// Custom Element that is inserted via a template.
+
+const ElementHook = {
+  create: vnode => {
+    const {
+      sel,
+      data: {
+        ns
+      },
+      owner: {
+        renderer
+      }
+    } = vnode;
+    const elm = renderer.createElement(sel, ns);
+    linkNodeToShadow(elm, vnode);
+    fallbackElmHook(elm, vnode);
+    vnode.elm = elm;
+    createElmHook(vnode);
+  },
+  update: (oldVnode, vnode) => {
+    updateElmHook(oldVnode, vnode);
+    updateChildrenHook(oldVnode, vnode);
+  },
+  insert: (vnode, parentNode, referenceNode) => {
+    insertNodeHook(vnode, parentNode, referenceNode);
+    createChildrenHook(vnode);
+  },
+  move: (vnode, parentNode, referenceNode) => {
+    insertNodeHook(vnode, parentNode, referenceNode);
+  },
+  remove: (vnode, parentNode) => {
+    removeNodeHook(vnode, parentNode);
+    removeElmHook(vnode);
+  }
+};
+const CustomElementHook = {
+  create: vnode => {
+    const {
+      sel,
+      owner: {
+        renderer
+      }
+    } = vnode;
+    const elm = renderer.createElement(sel);
+    linkNodeToShadow(elm, vnode);
+    createViewModelHook(elm, vnode);
+    vnode.elm = elm;
+    allocateChildrenHook(vnode);
+    createCustomElmHook(vnode);
+  },
+  update: (oldVnode, vnode) => {
+    updateCustomElmHook(oldVnode, vnode); // in fallback mode, the allocation will always set children to
+    // empty and delegate the real allocation to the slot elements
+
+    allocateChildrenHook(vnode); // in fallback mode, the children will be always empty, so, nothing
+    // will happen, but in native, it does allocate the light dom
+
+    updateChildrenHook(oldVnode, vnode); // this will update the shadowRoot
+
+    rerenderCustomElmHook(vnode);
+  },
+  insert: (vnode, parentNode, referenceNode) => {
+    insertNodeHook(vnode, parentNode, referenceNode);
+    const vm = getAssociatedVM(vnode.elm);
+    {
+      assert$1.isTrue(vm.state === VMState.created, `${vm} cannot be recycled.`);
+    }
+    runConnectedCallback(vm);
+    createChildrenHook(vnode);
+    insertCustomElmHook(vnode);
+  },
+  move: (vnode, parentNode, referenceNode) => {
+    insertNodeHook(vnode, parentNode, referenceNode);
+  },
+  remove: (vnode, parentNode) => {
+    removeNodeHook(vnode, parentNode);
+    removeCustomElmHook(vnode);
+  }
+};
+function linkNodeToShadow(elm, vnode) {
+  // TODO [#1164]: this should eventually be done by the polyfill directly
+  elm.$shadowResolver$ = vnode.owner.cmpRoot.$shadowResolver$;
+} // TODO [#1136]: this should be done by the compiler, adding ns to every sub-element
+
+function addNS(vnode) {
+  const {
+    data,
+    children,
+    sel
+  } = vnode;
+  data.ns = NamespaceAttributeForSVG; // TODO [#1275]: review why `sel` equal `foreignObject` should get this `ns`
+
+  if (isArray$2(children) && sel !== 'foreignObject') {
+    for (let j = 0, n = children.length; j < n; ++j) {
+      const childNode = children[j];
+      if (childNode != null && childNode.hook === ElementHook) {
+        addNS(childNode);
+      }
+    }
+  }
+}
 function addVNodeToChildLWC(vnode) {
   ArrayPush$1.call(getVMBeingRendered().velements, vnode);
-}
-// [s]coped [s]lot [f]actory
-function ssf(slotName, factory) {
-  return {
-    type: 6 /* VNodeType.ScopedSlotFragment */,
-    factory,
-    owner: getVMBeingRendered(),
-    elm: undefined,
-    sel: undefined,
-    key: undefined,
-    slotName
-  };
-}
-// [st]atic node
-function st(fragment, key) {
-  return {
-    type: 4 /* VNodeType.Static */,
-    sel: undefined,
-    key,
-    elm: undefined,
-    fragment,
-    owner: getVMBeingRendered()
-  };
-}
-// [fr]agment node
-function fr(key, children, stable) {
-  return {
-    type: 5 /* VNodeType.Fragment */,
-    sel: undefined,
-    key,
-    elm: undefined,
-    children: [t(''), ...children, t('')],
-    stable,
-    owner: getVMBeingRendered()
-  };
-}
-// [h]tml node
-function h(sel, data, children = EmptyArray) {
+} // [h]tml node
+
+function h(sel, data, children) {
   const vmBeingRendered = getVMBeingRendered();
   {
-    assert.isTrue(isString(sel), `h() 1st argument sel must be a string.`);
-    assert.isTrue(isObject(data), `h() 2nd argument data must be an object.`);
-    assert.isTrue(isArray$1(children), `h() 3rd argument children must be an array.`);
-    assert.isTrue('key' in data, ` <${sel}> "key" attribute is invalid or missing for ${vmBeingRendered}. Key inside iterator is either undefined or null.`);
-    // checking reserved internal data properties
-    assert.isFalse(data.className && data.classMap, `vnode.data.className and vnode.data.classMap ambiguous declaration.`);
-    assert.isFalse(data.styleDecls && data.style, `vnode.data.styleDecls and vnode.data.style ambiguous declaration.`);
+    assert$1.isTrue(isString(sel), `h() 1st argument sel must be a string.`);
+    assert$1.isTrue(isObject$2(data), `h() 2nd argument data must be an object.`);
+    assert$1.isTrue(isArray$2(children), `h() 3rd argument children must be an array.`);
+    assert$1.isTrue('key' in data, ` <${sel}> "key" attribute is invalid or missing for ${vmBeingRendered}. Key inside iterator is either undefined or null.`); // checking reserved internal data properties
+
+    assert$1.isFalse(data.className && data.classMap, `vnode.data.className and vnode.data.classMap ambiguous declaration.`);
+    assert$1.isFalse(data.styleMap && data.style, `vnode.data.styleMap and vnode.data.style ambiguous declaration.`);
     if (data.style && !isString(data.style)) {
       logError(`Invalid 'style' attribute passed to <${sel}> is ignored. This attribute must be a string value.`, vmBeingRendered);
     }
-    forEach.call(children, childVnode => {
+    forEach$1.call(children, childVnode => {
       if (childVnode != null) {
-        assert.isTrue('type' in childVnode && 'sel' in childVnode && 'elm' in childVnode && 'key' in childVnode, `${childVnode} is not a vnode.`);
+        assert$1.isTrue(childVnode && 'sel' in childVnode && 'data' in childVnode && 'children' in childVnode && 'text' in childVnode && 'elm' in childVnode && 'key' in childVnode, `${childVnode} is not a vnode.`);
       }
     });
   }
   const {
-    key,
-    ref
+    key
   } = data;
+  let text, elm;
   const vnode = {
-    type: 2 /* VNodeType.Element */,
     sel,
     data,
     children,
-    elm: undefined,
+    text,
+    elm,
     key,
+    hook: ElementHook,
     owner: vmBeingRendered
   };
-  if (!isUndefined$1(ref)) {
-    setRefVNode(vmBeingRendered, ref, vnode);
+  if (sel.length === 3 && StringCharCodeAt$1.call(sel, 0) === CHAR_S && StringCharCodeAt$1.call(sel, 1) === CHAR_V && StringCharCodeAt$1.call(sel, 2) === CHAR_G) {
+    addNS(vnode);
   }
   return vnode;
-}
-// [t]ab[i]ndex function
+} // [t]ab[i]ndex function
+
 function ti(value) {
   // if value is greater than 0, we normalize to 0
   // If value is an invalid tabIndex value (null, undefined, string, etc), we let that value pass through
   // If value is less than -1, we don't care
-  const shouldNormalize = value > 0 && !(isTrue(value) || isFalse(value));
+  const shouldNormalize = value > 0 && !(isTrue$1$1(value) || isFalse$1$1(value));
   {
     const vmBeingRendered = getVMBeingRendered();
     if (shouldNormalize) {
@@ -4568,117 +4085,69 @@ function ti(value) {
     }
   }
   return shouldNormalize ? 0 : value;
-}
-// [s]lot element node
+} // [s]lot element node
+
 function s(slotName, data, children, slotset) {
   {
-    assert.isTrue(isString(slotName), `s() 1st argument slotName must be a string.`);
-    assert.isTrue(isObject(data), `s() 2nd argument data must be an object.`);
-    assert.isTrue(isArray$1(children), `h() 3rd argument children must be an array.`);
+    assert$1.isTrue(isString(slotName), `s() 1st argument slotName must be a string.`);
+    assert$1.isTrue(isObject$2(data), `s() 2nd argument data must be an object.`);
+    assert$1.isTrue(isArray$2(children), `h() 3rd argument children must be an array.`);
   }
-  if (!isUndefined$1(slotset) && !isUndefined$1(slotset.slotAssignments) && !isUndefined$1(slotset.slotAssignments[slotName]) && slotset.slotAssignments[slotName].length !== 0) {
-    const newChildren = [];
-    const slotAssignments = slotset.slotAssignments[slotName];
-    for (let i = 0; i < slotAssignments.length; i++) {
-      const vnode = slotAssignments[i];
-      if (!isNull(vnode)) {
-        const assignedNodeIsScopedSlot = isVScopedSlotFragment(vnode);
-        // The only sniff test for a scoped <slot> element is the presence of `slotData`
-        const isScopedSlotElement = !isUndefined$1(data.slotData);
-        // Check if slot types of parent and child are matching
-        if (assignedNodeIsScopedSlot !== isScopedSlotElement) {
-          {
-            logError(`Mismatched slot types for ${slotName === '' ? '(default)' : slotName} slot. Both parent and child component must use standard type or scoped type for a given slot.`, slotset.owner);
-          }
-          // Ignore slot content from parent
-          continue;
-        }
-        // If the passed slot content is factory, evaluate it and add the produced vnodes
-        if (assignedNodeIsScopedSlot) {
-          const vmBeingRenderedInception = getVMBeingRendered();
-          // Evaluate in the scope of the slot content's owner
-          // if a slotset is provided, there will always be an owner. The only case where owner is
-          // undefined is for root components, but root components cannot accept slotted content
-          setVMBeingRendered(slotset.owner);
-          try {
-            ArrayPush$1.call(newChildren, vnode.factory(data.slotData, data.key));
-          } finally {
-            setVMBeingRendered(vmBeingRenderedInception);
-          }
-        } else {
-          // If the slot content is standard type, the content is static, no additional
-          // processing needed on the vnode
-          ArrayPush$1.call(newChildren, vnode);
-        }
-      }
-    }
-    children = newChildren;
+  if (!isUndefined$1(slotset) && !isUndefined$1(slotset[slotName]) && slotset[slotName].length !== 0) {
+    children = slotset[slotName];
   }
-  const vmBeingRendered = getVMBeingRendered();
-  const {
-    renderMode,
-    shadowMode
-  } = vmBeingRendered;
-  if (renderMode === 0 /* RenderMode.Light */) {
-    sc(children);
-    return children;
-  }
-  if (shadowMode === 1 /* ShadowMode.Synthetic */) {
+  const vnode = h('slot', data, children);
+  if (vnode.owner.renderer.syntheticShadow) {
     // TODO [#1276]: compiler should give us some sort of indicator when a vnodes collection is dynamic
     sc(children);
   }
-  return h('slot', data, children);
-}
-// [c]ustom element node
+  return vnode;
+} // [c]ustom element node
+
 function c(sel, Ctor, data, children = EmptyArray) {
   const vmBeingRendered = getVMBeingRendered();
   {
-    assert.isTrue(isString(sel), `c() 1st argument sel must be a string.`);
-    assert.isTrue(isFunction$1(Ctor), `c() 2nd argument Ctor must be a function.`);
-    assert.isTrue(isObject(data), `c() 3nd argument data must be an object.`);
-    assert.isTrue(arguments.length === 3 || isArray$1(children), `c() 4nd argument data must be an array.`);
-    // checking reserved internal data properties
-    assert.isFalse(data.className && data.classMap, `vnode.data.className and vnode.data.classMap ambiguous declaration.`);
-    assert.isFalse(data.styleDecls && data.style, `vnode.data.styleDecls and vnode.data.style ambiguous declaration.`);
+    assert$1.isTrue(isString(sel), `c() 1st argument sel must be a string.`);
+    assert$1.isTrue(isFunction$1(Ctor), `c() 2nd argument Ctor must be a function.`);
+    assert$1.isTrue(isObject$2(data), `c() 3nd argument data must be an object.`);
+    assert$1.isTrue(arguments.length === 3 || isArray$2(children), `c() 4nd argument data must be an array.`); // checking reserved internal data properties
+
+    assert$1.isFalse(data.className && data.classMap, `vnode.data.className and vnode.data.classMap ambiguous declaration.`);
+    assert$1.isFalse(data.styleMap && data.style, `vnode.data.styleMap and vnode.data.style ambiguous declaration.`);
     if (data.style && !isString(data.style)) {
       logError(`Invalid 'style' attribute passed to <${sel}> is ignored. This attribute must be a string value.`, vmBeingRendered);
     }
     if (arguments.length === 4) {
-      forEach.call(children, childVnode => {
+      forEach$1.call(children, childVnode => {
         if (childVnode != null) {
-          assert.isTrue('type' in childVnode && 'sel' in childVnode && 'elm' in childVnode && 'key' in childVnode, `${childVnode} is not a vnode.`);
+          assert$1.isTrue(childVnode && 'sel' in childVnode && 'data' in childVnode && 'children' in childVnode && 'text' in childVnode && 'elm' in childVnode && 'key' in childVnode, `${childVnode} is not a vnode.`);
         }
       });
     }
   }
   const {
-    key,
-    ref
+    key
   } = data;
-  let elm, aChildren, vm;
+  let text, elm;
   const vnode = {
-    type: 3 /* VNodeType.CustomElement */,
     sel,
     data,
     children,
+    text,
     elm,
     key,
+    hook: CustomElementHook,
     ctor: Ctor,
     owner: vmBeingRendered,
-    mode: 'open',
-    aChildren,
-    vm
+    mode: 'open'
   };
   addVNodeToChildLWC(vnode);
-  if (!isUndefined$1(ref)) {
-    setRefVNode(vmBeingRendered, ref, vnode);
-  }
   return vnode;
-}
-// [i]terable node
+} // [i]terable node
+
 function i(iterable, factory) {
-  const list = [];
-  // TODO [#1276]: compiler should give us some sort of indicator when a vnodes collection is dynamic
+  const list = []; // TODO [#1276]: compiler should give us some sort of indicator when a vnodes collection is dynamic
+
   sc(list);
   const vmBeingRendered = getVMBeingRendered();
   if (isUndefined$1(iterable) || iterable === null) {
@@ -4688,11 +4157,11 @@ function i(iterable, factory) {
     return list;
   }
   {
-    assert.isFalse(isUndefined$1(iterable[SymbolIterator]), `Invalid template iteration for value \`${toString$1(iterable)}\` in ${vmBeingRendered}. It must be an array-like object and not \`null\` nor \`undefined\`.`);
+    assert$1.isFalse(isUndefined$1(iterable[SymbolIterator]), `Invalid template iteration for value \`${toString$1(iterable)}\` in ${vmBeingRendered}. It must be an array-like object and not \`null\` nor \`undefined\`.`);
   }
   const iterator = iterable[SymbolIterator]();
   {
-    assert.isTrue(iterator && isFunction$1(iterator.next), `Invalid iterator function for "${toString$1(iterable)}" in ${vmBeingRendered}.`);
+    assert$1.isTrue(iterator && isFunction$1(iterator.next), `Invalid iterator function for "${toString$1(iterable)}" in ${vmBeingRendered}.`);
   }
   let next = iterator.next();
   let j = 0;
@@ -4703,23 +4172,23 @@ function i(iterable, factory) {
   let keyMap;
   let iterationError;
   {
-    keyMap = create(null);
+    keyMap = create$1(null);
   }
   while (last === false) {
     // implementing a look-back-approach because we need to know if the element is the last
     next = iterator.next();
-    last = next.done;
-    // template factory logic based on the previous collected value
-    const vnode = factory(value, j, j === 0, last === true);
-    if (isArray$1(vnode)) {
+    last = next.done; // template factory logic based on the previous collected value
+
+    const vnode = factory(value, j, j === 0, last);
+    if (isArray$2(vnode)) {
       ArrayPush$1.apply(list, vnode);
     } else {
       ArrayPush$1.call(list, vnode);
     }
     {
-      const vnodes = isArray$1(vnode) ? vnode : [vnode];
-      forEach.call(vnodes, childVnode => {
-        if (!isNull(childVnode) && isObject(childVnode) && !isUndefined$1(childVnode.sel)) {
+      const vnodes = isArray$2(vnode) ? vnode : [vnode];
+      forEach$1.call(vnodes, childVnode => {
+        if (!isNull$1(childVnode) && isObject$2(childVnode) && !isUndefined$1(childVnode.sel)) {
           const {
             key
           } = childVnode;
@@ -4733,8 +4202,8 @@ function i(iterable, factory) {
           }
         }
       });
-    }
-    // preparing next value
+    } // preparing next value
+
     j += 1;
     value = next.value;
   }
@@ -4748,64 +4217,59 @@ function i(iterable, factory) {
 /**
  * [f]lattening
  */
+
 function f(items) {
   {
-    assert.isTrue(isArray$1(items), 'flattening api can only work with arrays.');
+    assert$1.isTrue(isArray$2(items), 'flattening api can only work with arrays.');
   }
   const len = items.length;
-  const flattened = [];
-  // TODO [#1276]: compiler should give us some sort of indicator when a vnodes collection is dynamic
+  const flattened = []; // TODO [#1276]: compiler should give us some sort of indicator when a vnodes collection is dynamic
+
   sc(flattened);
   for (let j = 0; j < len; j += 1) {
     const item = items[j];
-    if (isArray$1(item)) {
+    if (isArray$2(item)) {
       ArrayPush$1.apply(flattened, item);
     } else {
       ArrayPush$1.call(flattened, item);
     }
   }
   return flattened;
-}
-// [t]ext node
+} // [t]ext node
+
 function t(text) {
-  let sel, key, elm;
+  const data = EmptyObject;
+  let sel, children, key, elm;
   return {
-    type: 0 /* VNodeType.Text */,
     sel,
+    data,
+    children,
     text,
     elm,
     key,
+    hook: TextHook,
     owner: getVMBeingRendered()
   };
-}
-// [co]mment node
-function co(text) {
-  let sel, elm;
-  return {
-    type: 1 /* VNodeType.Comment */,
-    sel,
-    text,
-    elm,
-    key: 'c',
-    owner: getVMBeingRendered()
-  };
-}
-// [d]ynamic text
+} // [d]ynamic value to produce a text vnode
+
 function d(value) {
-  return value == null ? '' : String(value);
-}
-// [b]ind function
+  if (value == null) {
+    return null;
+  }
+  return t(value);
+} // [b]ind function
+
 function b(fn) {
   const vmBeingRendered = getVMBeingRendered();
-  if (isNull(vmBeingRendered)) {
+  if (isNull$1(vmBeingRendered)) {
     throw new Error();
   }
   const vm = vmBeingRendered;
   return function (event) {
     invokeEventListener(vm, fn, vm.component, event);
   };
-}
-// [k]ey function
+} // [k]ey function
+
 function k(compilerKey, obj) {
   switch (typeof obj) {
     case 'number':
@@ -4813,11 +4277,11 @@ function k(compilerKey, obj) {
       return compilerKey + ':' + obj;
     case 'object':
       {
-        assert.fail(`Invalid key value "${obj}" in ${getVMBeingRendered()}. Key must be a string or number.`);
+        assert$1.fail(`Invalid key value "${obj}" in ${getVMBeingRendered()}. Key must be a string or number.`);
       }
   }
-}
-// [g]lobal [id] function
+} // [g]lobal [id] function
+
 function gid(id) {
   const vmBeingRendered = getVMBeingRendered();
   if (isUndefined$1(id) || id === '') {
@@ -4825,21 +4289,14 @@ function gid(id) {
       logError(`Invalid id value "${id}". The id attribute must contain a non-empty string.`, vmBeingRendered);
     }
     return id;
-  }
-  // We remove attributes when they are assigned a value of null
-  if (isNull(id)) {
+  } // We remove attributes when they are assigned a value of null
+
+  if (isNull$1(id)) {
     return null;
   }
-  const {
-    idx,
-    shadowMode
-  } = vmBeingRendered;
-  if (shadowMode === 1 /* ShadowMode.Synthetic */) {
-    return StringReplace.call(id, /\S+/g, id => `${id}-${idx}`);
-  }
-  return id;
-}
-// [f]ragment [id] function
+  return `${id}-${vmBeingRendered.idx}`;
+} // [f]ragment [id] function
+
 function fid(url) {
   const vmBeingRendered = getVMBeingRendered();
   if (isUndefined$1(url) || url === '') {
@@ -4849,37 +4306,51 @@ function fid(url) {
       }
     }
     return url;
-  }
-  // We remove attributes when they are assigned a value of null
-  if (isNull(url)) {
+  } // We remove attributes when they are assigned a value of null
+
+  if (isNull$1(url)) {
     return null;
-  }
-  const {
-    idx,
-    shadowMode
-  } = vmBeingRendered;
-  // Apply transformation only for fragment-only-urls, and only in shadow DOM
-  if (shadowMode === 1 /* ShadowMode.Synthetic */ && /^#/.test(url)) {
-    return `${url}-${idx}`;
+  } // Apply transformation only for fragment-only-urls
+
+  if (/^#/.test(url)) {
+    return `${url}-${vmBeingRendered.idx}`;
   }
   return url;
 }
 /**
+ * Map to store an index value assigned to any dynamic component reference ingested
+ * by dc() api. This allows us to generate a unique unique per template per dynamic
+ * component reference to avoid diffing algo mismatches.
+ */
+
+const DynamicImportedComponentMap = new Map();
+let dynamicImportedComponentCounter = 0;
+/**
  * create a dynamic component via `<x-foo lwc:dynamic={Ctor}>`
  */
-function dc(sel, Ctor, data, children = EmptyArray) {
+
+function dc(sel, Ctor, data, children) {
   {
-    assert.isTrue(isString(sel), `dc() 1st argument sel must be a string.`);
-    assert.isTrue(isObject(data), `dc() 3nd argument data must be an object.`);
-    assert.isTrue(arguments.length === 3 || isArray$1(children), `dc() 4nd argument data must be an array.`);
-  }
-  // null or undefined values should produce a null value in the VNodes
+    assert$1.isTrue(isString(sel), `dc() 1st argument sel must be a string.`);
+    assert$1.isTrue(isObject$2(data), `dc() 3nd argument data must be an object.`);
+    assert$1.isTrue(arguments.length === 3 || isArray$2(children), `dc() 4nd argument data must be an array.`);
+  } // null or undefined values should produce a null value in the VNodes
+
   if (Ctor == null) {
     return null;
   }
   if (!isComponentConstructor(Ctor)) {
     throw new Error(`Invalid LWC Constructor ${toString$1(Ctor)} for custom element <${sel}>.`);
   }
+  let idx = DynamicImportedComponentMap.get(Ctor);
+  if (isUndefined$1(idx)) {
+    idx = dynamicImportedComponentCounter++;
+    DynamicImportedComponentMap.set(Ctor, idx);
+  } // the new vnode key is a mix of idx and compiler key, this is required by the diffing algo
+  // to identify different constructors as vnodes with different keys to avoid reusing the
+  // element used for previous constructors.
+
+  data.key = `dc:${idx}:${data.key}`;
   return c(sel, Ctor, data, children);
 }
 /**
@@ -4895,49 +4366,33 @@ function dc(sel, Ctor, data, children = EmptyArray) {
  *   - children that are produced by iteration
  *
  */
+
 function sc(vnodes) {
   {
-    assert.isTrue(isArray$1(vnodes), 'sc() api can only work with arrays.');
-  }
-  // We have to mark the vnodes collection as dynamic so we can later on
+    assert$1.isTrue(isArray$2(vnodes), 'sc() api can only work with arrays.');
+  } // We have to mark the vnodes collection as dynamic so we can later on
   // choose to use the snabbdom virtual dom diffing algo instead of our
   // static dummy algo.
+
   markAsDynamicChildren(vnodes);
   return vnodes;
 }
-/**
- * EXPERIMENTAL: This function acts like a hook for Lightning Locker Service and other similar
- * libraries to sanitize HTML content. This hook process the content passed via the template to
- * lwc:inner-html directive.
- * It is meant to be overridden with setSanitizeHtmlContentHook, it throws an error by default.
- */
-let sanitizeHtmlContentHook = () => {
-  // locker-service patches this function during runtime to sanitize HTML content.
-  throw new Error('sanitizeHtmlContent hook must be implemented.');
-};
-// [s]anitize [h]tml [c]ontent
-function shc(content) {
-  return sanitizeHtmlContentHook();
-}
-const api = freeze({
-  s,
-  h,
-  c,
-  i,
-  f,
-  t,
-  d,
-  b,
-  k,
-  co,
-  dc,
-  fr,
-  ti,
-  st,
-  gid,
-  fid,
-  shc,
-  ssf
+var api$1 = /*#__PURE__*/Object.freeze({
+  __proto__: null,
+  h: h,
+  ti: ti,
+  s: s,
+  c: c,
+  i: i,
+  f: f,
+  t: t,
+  d: d,
+  b: b,
+  k: k,
+  gid: gid,
+  fid: fid,
+  dc: dc,
+  sc: sc
 });
 
 /*
@@ -4946,58 +4401,138 @@ const api = freeze({
  * SPDX-License-Identifier: MIT
  * For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/MIT
  */
-const operationIdNameMapping = ['constructor', 'render', 'patch', 'connectedCallback', 'renderedCallback', 'disconnectedCallback', 'errorCallback', 'lwc-hydrate', 'lwc-rehydrate'];
-// Even if all the browser the engine supports implements the UserTiming API, we need to guard the measure APIs.
+
+function createShadowStyleVNode(content) {
+  return h('style', {
+    key: 'style',
+    attrs: {
+      type: 'text/css'
+    }
+  }, [t(content)]);
+}
+function updateSyntheticShadowAttributes(vm, template) {
+  const {
+    elm,
+    context,
+    renderer
+  } = vm;
+  const {
+    stylesheets: newStylesheets,
+    stylesheetTokens: newStylesheetTokens
+  } = template;
+  let newHostAttribute;
+  let newShadowAttribute; // Reset the styling token applied to the host element.
+
+  const oldHostAttribute = context.hostAttribute;
+  if (!isUndefined$1(oldHostAttribute)) {
+    renderer.removeAttribute(elm, oldHostAttribute);
+  } // Apply the new template styling token to the host element, if the new template has any
+  // associated stylesheets.
+
+  if (!isUndefined$1(newStylesheetTokens) && !isUndefined$1(newStylesheets) && newStylesheets.length !== 0) {
+    newHostAttribute = newStylesheetTokens.hostAttribute;
+    newShadowAttribute = newStylesheetTokens.shadowAttribute;
+    renderer.setAttribute(elm, newHostAttribute, '');
+  } // Update the styling tokens present on the context object.
+
+  context.hostAttribute = newHostAttribute;
+  context.shadowAttribute = newShadowAttribute;
+}
+function evaluateStylesheetsContent(stylesheets, hostSelector, shadowSelector, nativeShadow) {
+  const content = [];
+  for (let i = 0; i < stylesheets.length; i++) {
+    const stylesheet = stylesheets[i];
+    if (isArray$2(stylesheet)) {
+      ArrayPush$1.apply(content, evaluateStylesheetsContent(stylesheet, hostSelector, shadowSelector, nativeShadow));
+    } else {
+      ArrayPush$1.call(content, stylesheet(hostSelector, shadowSelector, nativeShadow));
+    }
+  }
+  return content;
+}
+function getStylesheetsContent(vm, template) {
+  const {
+    stylesheets,
+    stylesheetTokens: tokens
+  } = template;
+  const {
+    syntheticShadow
+  } = vm.renderer;
+  let content = [];
+  if (!isUndefined$1(stylesheets) && !isUndefined$1(tokens)) {
+    const hostSelector = syntheticShadow ? `[${tokens.hostAttribute}]` : '';
+    const shadowSelector = syntheticShadow ? `[${tokens.shadowAttribute}]` : '';
+    content = evaluateStylesheetsContent(stylesheets, hostSelector, shadowSelector, !syntheticShadow);
+  }
+  return content;
+}
+function createStylesheet(vm, stylesheets) {
+  const {
+    renderer
+  } = vm;
+  if (renderer.syntheticShadow) {
+    for (let i = 0; i < stylesheets.length; i++) {
+      renderer.insertGlobalStylesheet(stylesheets[i]);
+    }
+    return null;
+  } else {
+    const shadowStyleSheetContent = ArrayJoin$1.call(stylesheets, '\n');
+    return createShadowStyleVNode(shadowStyleSheetContent);
+  }
+}
+
+/*
+ * Copyright (c) 2018, salesforce.com, inc.
+ * All rights reserved.
+ * SPDX-License-Identifier: MIT
+ * For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/MIT
+ */
+var GlobalMeasurementPhase;
+(function (GlobalMeasurementPhase) {
+  GlobalMeasurementPhase["REHYDRATE"] = "lwc-rehydrate";
+  GlobalMeasurementPhase["HYDRATE"] = "lwc-hydrate";
+})(GlobalMeasurementPhase || (GlobalMeasurementPhase = {})); // Even if all the browser the engine supports implements the UserTiming API, we need to guard the measure APIs.
 // JSDom (used in Jest) for example doesn't implement the UserTiming APIs.
+
 const isUserTimingSupported = typeof performance !== 'undefined' && typeof performance.mark === 'function' && typeof performance.clearMarks === 'function' && typeof performance.measure === 'function' && typeof performance.clearMeasures === 'function';
-const start = !isUserTimingSupported ? noop : markName => {
-  performance.mark(markName);
-};
-const end = !isUserTimingSupported ? noop : (measureName, markName) => {
-  performance.measure(measureName, markName);
-  // Clear the created marks and measure to avoid filling the performance entries buffer.
-  // Note: Even if the entries get deleted, existing PerformanceObservers preserve a copy of those entries.
-  performance.clearMarks(markName);
-  performance.clearMeasures(measureName);
-};
-function getOperationName(opId) {
-  return operationIdNameMapping[opId];
-}
-function getMeasureName(opId, vm) {
-  return `${getComponentTag(vm)} - ${getOperationName(opId)}`;
-}
-function getMarkName(opId, vm) {
+function getMarkName(phase, vm) {
   // Adding the VM idx to the mark name creates a unique mark name component instance. This is necessary to produce
   // the right measures for components that are recursive.
-  return `${getMeasureName(opId, vm)} - ${vm.idx}`;
+  return `${getComponentTag(vm)} - ${phase} - ${vm.idx}`;
 }
-function logOperationStart(opId, vm) {
-  {
-    const markName = getMarkName(opId, vm);
-    start(markName);
-  }
+function getMeasureName(phase, vm) {
+  return `${getComponentTag(vm)} - ${phase}`;
 }
-function logOperationEnd(opId, vm) {
-  {
-    const markName = getMarkName(opId, vm);
-    const measureName = getMeasureName(opId, vm);
-    end(measureName, markName);
-  }
+function start(markName) {
+  performance.mark(markName);
 }
-function logGlobalOperationStart(opId, vm) {
-  {
-    const opName = getOperationName(opId);
-    const markName = isUndefined$1(vm) ? opName : getMarkName(opId, vm);
-    start(markName);
-  }
+function end(measureName, markName) {
+  performance.measure(measureName, markName); // Clear the created marks and measure to avoid filling the performance entries buffer.
+  // Note: Even if the entries get deleted, existing PerformanceObservers preserve a copy of those entries.
+
+  performance.clearMarks(markName);
+  performance.clearMarks(measureName);
 }
-function logGlobalOperationEnd(opId, vm) {
-  {
-    const opName = getOperationName(opId);
-    const markName = isUndefined$1(vm) ? opName : getMarkName(opId, vm);
-    end(opName, markName);
-  }
+function noop$1() {
+  /* do nothing */
 }
+const startMeasure = !isUserTimingSupported ? noop$1 : function (phase, vm) {
+  const markName = getMarkName(phase, vm);
+  start(markName);
+};
+const endMeasure = !isUserTimingSupported ? noop$1 : function (phase, vm) {
+  const markName = getMarkName(phase, vm);
+  const measureName = getMeasureName(phase, vm);
+  end(measureName, markName);
+};
+const startGlobalMeasure = !isUserTimingSupported ? noop$1 : function (phase, vm) {
+  const markName = isUndefined$1(vm) ? phase : getMarkName(phase, vm);
+  start(markName);
+};
+const endGlobalMeasure = !isUserTimingSupported ? noop$1 : function (phase, vm) {
+  const markName = isUndefined$1(vm) ? phase : getMarkName(phase, vm);
+  end(phase, markName);
+};
 
 /*
  * Copyright (c) 2018, salesforce.com, inc.
@@ -5020,94 +4555,19 @@ function validateSlots(vm, html) {
   const {
     slots = EmptyArray
   } = html;
-  for (const slotName in cmpSlots.slotAssignments) {
-    // eslint-disable-next-line @lwc/lwc-internal/no-production-assert
-    assert.isTrue(isArray$1(cmpSlots.slotAssignments[slotName]), `Slots can only be set to an array, instead received ${toString$1(cmpSlots.slotAssignments[slotName])} for slot "${slotName}" in ${vm}.`);
-    if (slotName !== '' && ArrayIndexOf.call(slots, slotName) === -1) {
+  for (const slotName in cmpSlots) {
+    // eslint-disable-next-line lwc-internal/no-production-assert
+    assert$1.isTrue(isArray$2(cmpSlots[slotName]), `Slots can only be set to an array, instead received ${toString$1(cmpSlots[slotName])} for slot "${slotName}" in ${vm}.`);
+    if (slotName !== '' && ArrayIndexOf$1.call(slots, slotName) === -1) {
       // TODO [#1297]: this should never really happen because the compiler should always validate
-      // eslint-disable-next-line @lwc/lwc-internal/no-production-assert
+      // eslint-disable-next-line lwc-internal/no-production-assert
       logError(`Ignoring unknown provided slot name "${slotName}" in ${vm}. Check for a typo on the slot attribute.`, vm);
     }
   }
 }
-function validateLightDomTemplate(template, vm) {
-  if (template === defaultEmptyTemplate) return;
-  if (vm.renderMode === 0 /* RenderMode.Light */) {
-    assert.isTrue(template.renderMode === 'light', `Light DOM components can't render shadow DOM templates. Add an 'lwc:render-mode="light"' directive to the root template tag of ${getComponentTag(vm)}.`);
-  } else {
-    assert.isTrue(isUndefined$1(template.renderMode), `Shadow DOM components template can't render light DOM templates. Either remove the 'lwc:render-mode' directive from ${getComponentTag(vm)} or set it to 'lwc:render-mode="shadow"`);
-  }
-}
-function buildParseFragmentFn(createFragmentFn) {
-  return (strings, ...keys) => {
-    const cache = create(null);
-    return function () {
-      const {
-        context: {
-          hasScopedStyles,
-          stylesheetToken
-        },
-        shadowMode,
-        renderer
-      } = getVMBeingRendered();
-      const hasStyleToken = !isUndefined$1(stylesheetToken);
-      const isSyntheticShadow = shadowMode === 1 /* ShadowMode.Synthetic */;
-      let cacheKey = 0;
-      if (hasStyleToken && hasScopedStyles) {
-        cacheKey |= 1 /* FragmentCache.HAS_SCOPED_STYLE */;
-      }
-
-      if (hasStyleToken && isSyntheticShadow) {
-        cacheKey |= 2 /* FragmentCache.SHADOW_MODE_SYNTHETIC */;
-      }
-
-      if (!isUndefined$1(cache[cacheKey])) {
-        return cache[cacheKey];
-      }
-      const classToken = hasScopedStyles && hasStyleToken ? ' ' + stylesheetToken : '';
-      const classAttrToken = hasScopedStyles && hasStyleToken ? ` class="${stylesheetToken}"` : '';
-      const attrToken = hasStyleToken && isSyntheticShadow ? ' ' + stylesheetToken : '';
-      let htmlFragment = '';
-      for (let i = 0, n = keys.length; i < n; i++) {
-        switch (keys[i]) {
-          case 0:
-            // styleToken in existing class attr
-            htmlFragment += strings[i] + classToken;
-            break;
-          case 1:
-            // styleToken for added class attr
-            htmlFragment += strings[i] + classAttrToken;
-            break;
-          case 2:
-            // styleToken as attr
-            htmlFragment += strings[i] + attrToken;
-            break;
-          case 3:
-            // ${1}${2}
-            htmlFragment += strings[i] + classAttrToken + attrToken;
-            break;
-        }
-      }
-      htmlFragment += strings[strings.length - 1];
-      cache[cacheKey] = createFragmentFn(htmlFragment, renderer);
-      return cache[cacheKey];
-    };
-  };
-}
-// Note: at the moment this code executes, we don't have a renderer yet.
-const parseFragment = buildParseFragmentFn((html, renderer) => {
-  const {
-    createFragment
-  } = renderer;
-  return createFragment(html);
-});
 function evaluateTemplate(vm, html) {
   {
-    assert.isTrue(isFunction$1(html), `evaluateTemplate() second argument must be an imported template instead of ${toString$1(html)}`);
-    // in dev-mode, we support hot swapping of templates, which means that
-    // the component instance might be attempting to use an old version of
-    // the template, while internally, we have a replacement for it.
-    html = getTemplateOrSwappedTemplate(html);
+    assert$1.isTrue(isFunction$1(html), `evaluateTemplate() second argument must be an imported template instead of ${toString$1(html)}`);
   }
   const isUpdatingTemplateInception = isUpdatingTemplate;
   const vmOfTemplateBeingUpdatedInception = vmBeingRendered;
@@ -5115,7 +4575,9 @@ function evaluateTemplate(vm, html) {
   runWithBoundaryProtection(vm, vm.owner, () => {
     // pre
     vmBeingRendered = vm;
-    logOperationStart(1 /* OperationId.Render */, vm);
+    {
+      startMeasure('render', vm);
+    }
   }, () => {
     // job
     const {
@@ -5123,84 +4585,82 @@ function evaluateTemplate(vm, html) {
       context,
       cmpSlots,
       cmpTemplate,
-      tro
+      tro,
+      renderer
     } = vm;
     tro.observe(() => {
       // Reset the cache memoizer for template when needed.
       if (html !== cmpTemplate) {
-        if ("development" !== 'production') {
-          validateLightDomTemplate(html, vm);
-        }
         // Perf opt: do not reset the shadow root during the first rendering (there is
         // nothing to reset).
-        if (!isNull(cmpTemplate)) {
+        if (!isNull$1(cmpTemplate)) {
           // It is important to reset the content to avoid reusing similar elements
           // generated from a different template, because they could have similar IDs,
           // and snabbdom just rely on the IDs.
-          resetComponentRoot(vm);
-        }
-        // Check that the template was built by the compiler.
+          resetShadowRoot(vm);
+        } // Check that the template was built by the compiler.
+
         if (!isTemplateRegistered(html)) {
           throw new TypeError(`Invalid template returned by the render() method on ${vm}. It must return an imported template (e.g.: \`import html from "./${vm.def.name}.html"\`), instead, it has returned: ${toString$1(html)}.`);
         }
-        vm.cmpTemplate = html;
-        // Create a brand new template cache for the swapped templated.
-        context.tplCache = create(null);
-        // Set the computeHasScopedStyles property in the context, to avoid recomputing it repeatedly.
-        context.hasScopedStyles = computeHasScopedStyles(html);
-        // Update the scoping token on the host element.
-        updateStylesheetToken(vm, html);
-        // Evaluate, create stylesheet and cache the produced VNode for future
+        vm.cmpTemplate = html; // Create a brand new template cache for the swapped templated.
+
+        context.tplCache = create$1(null); // Update the synthetic shadow attributes on the host element if necessary.
+
+        if (renderer.syntheticShadow) {
+          updateSyntheticShadowAttributes(vm, html);
+        } // Evaluate, create stylesheet and cache the produced VNode for future
         // re-rendering.
+
         const stylesheetsContent = getStylesheetsContent(vm, html);
-        context.styleVNodes = stylesheetsContent.length === 0 ? null : createStylesheet(vm, stylesheetsContent);
+        context.styleVNode = stylesheetsContent.length === 0 ? null : createStylesheet(vm, stylesheetsContent);
       }
       if ("development" !== 'production') {
         // validating slots in every rendering since the allocated content might change over time
         validateSlots(vm, html);
-        // add the VM to the list of host VMs that can be re-rendered if html is swapped
-        setActiveVM(vm);
-      }
-      // reset the refs; they will be set during the tmpl() instantiation
-      const hasRefVNodes = Boolean(html.hasRefs);
-      vm.hasRefVNodes = hasRefVNodes;
-      vm.refVNodes = hasRefVNodes ? create(null) : null;
-      // right before producing the vnodes, we clear up all internal references
+      } // right before producing the vnodes, we clear up all internal references
       // to custom elements from the template.
-      vm.velements = [];
-      // Set the global flag that template is being updated
+
+      vm.velements = []; // Set the global flag that template is being updated
+
       isUpdatingTemplate = true;
-      vnodes = html.call(undefined, api, component, cmpSlots, context.tplCache);
+      vnodes = html.call(undefined, api$1, component, cmpSlots, context.tplCache);
       const {
-        styleVNodes
+        styleVNode
       } = context;
-      if (!isNull(styleVNodes)) {
-        ArrayUnshift.apply(vnodes, styleVNodes);
+      if (!isNull$1(styleVNode)) {
+        ArrayUnshift$2.call(vnodes, styleVNode);
       }
     });
   }, () => {
     // post
     isUpdatingTemplate = isUpdatingTemplateInception;
     vmBeingRendered = vmOfTemplateBeingUpdatedInception;
-    logOperationEnd(1 /* OperationId.Render */, vm);
+    {
+      endMeasure('render', vm);
+    }
   });
   {
-    assert.invariant(isArray$1(vnodes), `Compiler should produce html functions that always return an array.`);
+    assert$1.invariant(isArray$2(vnodes), `Compiler should produce html functions that always return an array.`);
   }
   return vnodes;
 }
-function computeHasScopedStyles(template) {
-  const {
-    stylesheets
-  } = template;
-  if (!isUndefined$1(stylesheets)) {
-    for (let i = 0; i < stylesheets.length; i++) {
-      if (isTrue(stylesheets[i][KEY__SCOPED_CSS])) {
-        return true;
+
+/*
+ * Copyright (c) 2018, salesforce.com, inc.
+ * All rights reserved.
+ * SPDX-License-Identifier: MIT
+ * For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/MIT
+ */
+function addErrorComponentStack(vm, error) {
+  if (!isFrozen$1(error) && isUndefined$1(error.wcStack)) {
+    const wcStack = getErrorComponentStack(vm);
+    defineProperty$1(error, 'wcStack', {
+      get() {
+        return wcStack;
       }
-    }
+    });
   }
-  return false;
 }
 
 /*
@@ -5214,44 +4674,53 @@ let vmBeingConstructed = null;
 function isBeingConstructed(vm) {
   return vmBeingConstructed === vm;
 }
+const noop$2 = () => void 0;
 function invokeComponentCallback(vm, fn, args) {
   const {
     component,
     callHook,
     owner
   } = vm;
-  runWithBoundaryProtection(vm, owner, noop, () => {
-    callHook(component, fn, args);
-  }, noop);
+  let result;
+  runWithBoundaryProtection(vm, owner, noop$2, () => {
+    // job
+    result = callHook(component, fn, args);
+  }, noop$2);
+  return result;
 }
 function invokeComponentConstructor(vm, Ctor) {
   const vmBeingConstructedInception = vmBeingConstructed;
   let error;
-  logOperationStart(0 /* OperationId.Constructor */, vm);
+  {
+    startMeasure('constructor', vm);
+  }
   vmBeingConstructed = vm;
   /**
    * Constructors don't need to be wrapped with a boundary because for root elements
    * it should throw, while elements from template are already wrapped by a boundary
    * associated to the diffing algo.
    */
+
   try {
     // job
-    const result = new Ctor();
-    // Check indirectly if the constructor result is an instance of LightningElement. Using
+    const result = new Ctor(); // Check indirectly if the constructor result is an instance of LightningElement. Using
     // the "instanceof" operator would not work here since Locker Service provides its own
     // implementation of LightningElement, so we indirectly check if the base constructor is
     // invoked by accessing the component on the vm.
+
     if (vmBeingConstructed.component !== result) {
       throw new TypeError('Invalid component constructor, the class should extend LightningElement.');
     }
   } catch (e) {
     error = Object(e);
   } finally {
-    logOperationEnd(0 /* OperationId.Constructor */, vm);
+    {
+      endMeasure('constructor', vm);
+    }
     vmBeingConstructed = vmBeingConstructedInception;
     if (!isUndefined$1(error)) {
-      addErrorComponentStack(vm, error);
-      // re-throwing the original error annotated after restoring the context
+      addErrorComponentStack(vm, error); // re-throwing the original error annotated after restoring the context
+
       throw error; // eslint-disable-line no-unsafe-finally
     }
   }
@@ -5284,22 +4753,47 @@ function invokeComponentRenderMethod(vm) {
     // post
     isInvokingRender = isRenderBeingInvokedInception;
     setVMBeingRendered(vmBeingRenderedInception);
-  });
-  // If render() invocation failed, process errorCallback in boundary and return an empty template
+  }); // If render() invocation failed, process errorCallback in boundary and return an empty template
+
   return renderInvocationSuccessful ? evaluateTemplate(vm, html) : [];
+}
+function invokeComponentRenderedCallback(vm) {
+  const {
+    def: {
+      renderedCallback
+    },
+    component,
+    callHook,
+    owner
+  } = vm;
+  if (!isUndefined$1(renderedCallback)) {
+    runWithBoundaryProtection(vm, owner, () => {
+      {
+        startMeasure('renderedCallback', vm);
+      }
+    }, () => {
+      // job
+      callHook(component, renderedCallback);
+    }, () => {
+      // post
+      {
+        endMeasure('renderedCallback', vm);
+      }
+    });
+  }
 }
 function invokeEventListener(vm, fn, thisValue, event) {
   const {
     callHook,
     owner
   } = vm;
-  runWithBoundaryProtection(vm, owner, noop, () => {
+  runWithBoundaryProtection(vm, owner, noop$2, () => {
     // job
     if ("development" !== 'production') {
-      assert.isTrue(isFunction$1(fn), `Invalid event handler for event '${event.type}' on ${vm}.`);
+      assert$1.isTrue(isFunction$1(fn), `Invalid event handler for event '${event.type}' on ${vm}.`);
     }
     callHook(thisValue, fn, [event]);
-  }, noop);
+  }, noop$2);
 }
 
 /*
@@ -5313,30 +4807,31 @@ const signedTemplateMap = new Map();
  * INTERNAL: This function can only be invoked by compiled code. The compiler
  * will prevent this function from being imported by userland code.
  */
-function registerComponent(
-// We typically expect a LightningElementConstructor, but technically you can call this with anything
-Ctor, {
+
+function registerComponent(Ctor, {
   tmpl
 }) {
-  if (isFunction$1(Ctor)) {
-    {
-      checkVersionMismatch(Ctor, 'component');
-    }
-    signedTemplateMap.set(Ctor, tmpl);
-  }
-  // chaining this method as a way to wrap existing assignment of component constructor easily,
+  signedTemplateMap.set(Ctor, tmpl); // chaining this method as a way to wrap existing assignment of component constructor easily,
   // without too much transformation
+
   return Ctor;
 }
 function getComponentRegisteredTemplate(Ctor) {
   return signedTemplateMap.get(Ctor);
 }
+function createComponent(vm, Ctor) {
+  // create the component instance
+  invokeComponentConstructor(vm, Ctor);
+  if (isUndefined$1(vm.component)) {
+    throw new ReferenceError(`Invalid construction for ${Ctor}, you must extend LightningElement.`);
+  }
+}
 function getTemplateReactiveObserver(vm) {
-  return createReactiveObserver(() => {
+  return new ReactiveObserver(() => {
     const {
       isDirty
     } = vm;
-    if (isFalse(isDirty)) {
+    if (isFalse$1$1(isDirty)) {
       markComponentAsDirty(vm);
       scheduleRehydration(vm);
     }
@@ -5344,20 +4839,23 @@ function getTemplateReactiveObserver(vm) {
 }
 function renderComponent(vm) {
   {
-    assert.invariant(vm.isDirty, `${vm} is not dirty.`);
+    assert$1.invariant(vm.isDirty, `${vm} is not dirty.`);
   }
   vm.tro.reset();
   const vnodes = invokeComponentRenderMethod(vm);
   vm.isDirty = false;
   vm.isScheduled = false;
+  {
+    assert$1.invariant(isArray$2(vnodes), `${vm}.render() should always return an array of vnodes instead of ${vnodes}`);
+  }
   return vnodes;
 }
 function markComponentAsDirty(vm) {
   {
     const vmBeingRendered = getVMBeingRendered();
-    assert.isFalse(vm.isDirty, `markComponentAsDirty() for ${vm} should not be called when the component is already dirty.`);
-    assert.isFalse(isInvokingRender, `markComponentAsDirty() for ${vm} cannot be called during rendering of ${vmBeingRendered}.`);
-    assert.isFalse(isUpdatingTemplate, `markComponentAsDirty() for ${vm} cannot be called while updating template of ${vmBeingRendered}.`);
+    assert$1.isFalse(vm.isDirty, `markComponentAsDirty() for ${vm} should not be called when the component is already dirty.`);
+    assert$1.isFalse(isInvokingRender, `markComponentAsDirty() for ${vm} cannot be called during rendering of ${vmBeingRendered}.`);
+    assert$1.isFalse(isUpdatingTemplate, `markComponentAsDirty() for ${vm} cannot be called while updating template of ${vmBeingRendered}.`);
   }
   vm.isDirty = true;
 }
@@ -5383,10 +4881,10 @@ function getWrappedComponentsListener(vm, listener) {
  * SPDX-License-Identifier: MIT
  * For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/MIT
  */
-const Services = create(null);
+const Services = create$1(null);
 function invokeServiceHook(vm, cbs) {
   {
-    assert.isTrue(isArray$1(cbs) && cbs.length > 0, `Optimize invokeServiceHook() to be invoked only when needed`);
+    assert$1.isTrue(isArray$2(cbs) && cbs.length > 0, `Optimize invokeServiceHook() to be invoked only when needed`);
   }
   const {
     component,
@@ -5404,9 +4902,16 @@ function invokeServiceHook(vm, cbs) {
  * SPDX-License-Identifier: MIT
  * For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/MIT
  */
+var VMState;
+(function (VMState) {
+  VMState[VMState["created"] = 0] = "created";
+  VMState[VMState["connected"] = 1] = "connected";
+  VMState[VMState["disconnected"] = 2] = "disconnected";
+})(VMState || (VMState = {}));
 let idx = 0;
 /** The internal slot used to associate different objects the engine manipulates with the VM */
-const ViewModelReflection = new WeakMap();
+
+const ViewModelReflection = createHiddenField$1('ViewModel', 'engine');
 function callHook(cmp, fn, args = []) {
   return fn.apply(cmp, args);
 }
@@ -5421,15 +4926,15 @@ function rerenderVM(vm) {
 }
 function connectRootElement(elm) {
   const vm = getAssociatedVM(elm);
-  logGlobalOperationStart(7 /* OperationId.GlobalHydrate */, vm);
-  // Usually means moving the element from one place to another, which is observable via
+  startGlobalMeasure(GlobalMeasurementPhase.HYDRATE, vm); // Usually means moving the element from one place to another, which is observable via
   // life-cycle hooks.
-  if (vm.state === 1 /* VMState.connected */) {
+
+  if (vm.state === VMState.connected) {
     disconnectRootElement(elm);
   }
   runConnectedCallback(vm);
   rehydrate(vm);
-  logGlobalOperationEnd(7 /* OperationId.GlobalHydrate */, vm);
+  endGlobalMeasure(GlobalMeasurementPhase.HYDRATE, vm);
 }
 function disconnectRootElement(elm) {
   const vm = getAssociatedVM(elm);
@@ -5437,180 +4942,110 @@ function disconnectRootElement(elm) {
 }
 function appendVM(vm) {
   rehydrate(vm);
-}
-// just in case the component comes back, with this we guarantee re-rendering it
+} // just in case the component comes back, with this we guarantee re-rendering it
 // while preventing any attempt to rehydration until after reinsertion.
+
 function resetComponentStateWhenRemoved(vm) {
   const {
     state
   } = vm;
-  if (state !== 2 /* VMState.disconnected */) {
+  if (state !== VMState.disconnected) {
     const {
+      oar,
       tro
-    } = vm;
-    // Making sure that any observing record will not trigger the rehydrated on this vm
-    tro.reset();
-    runDisconnectedCallback(vm);
-    // Spec: https://dom.spec.whatwg.org/#concept-node-remove (step 14-15)
-    runChildNodesDisconnectedCallback(vm);
+    } = vm; // Making sure that any observing record will not trigger the rehydrated on this vm
+
+    tro.reset(); // Making sure that any observing accessor record will not trigger the setter to be reinvoked
+
+    for (const key in oar) {
+      oar[key].reset();
+    }
+    runDisconnectedCallback(vm); // Spec: https://dom.spec.whatwg.org/#concept-node-remove (step 14-15)
+
+    runShadowChildNodesDisconnectedCallback(vm);
     runLightChildNodesDisconnectedCallback(vm);
   }
-  {
-    removeActiveVM(vm);
-  }
-}
-// this method is triggered by the diffing algo only when a vnode from the
+} // this method is triggered by the diffing algo only when a vnode from the
 // old vnode.children is removed from the DOM.
+
 function removeVM(vm) {
   {
-    assert.isTrue(vm.state === 1 /* VMState.connected */ || vm.state === 2 /* VMState.disconnected */, `${vm} must have been connected.`);
+    assert$1.isTrue(vm.state === VMState.connected || vm.state === VMState.disconnected, `${vm} must have been connected.`);
   }
   resetComponentStateWhenRemoved(vm);
 }
-function getNearestShadowAncestor(vm) {
-  let ancestor = vm.owner;
-  while (!isNull(ancestor) && ancestor.renderMode === 0 /* RenderMode.Light */) {
-    ancestor = ancestor.owner;
-  }
-  return ancestor;
-}
-function createVM(elm, ctor, renderer, options) {
+function createVM(elm, def, options) {
   const {
     mode,
     owner,
-    tagName,
-    hydrated
+    renderer,
+    tagName
   } = options;
-  const def = getComponentInternalDef(ctor);
   const vm = {
     elm,
     def,
     idx: idx++,
-    state: 0 /* VMState.created */,
+    state: VMState.created,
     isScheduled: false,
     isDirty: true,
     tagName,
     mode,
     owner,
-    refVNodes: null,
-    hasRefVNodes: false,
+    renderer,
     children: EmptyArray,
     aChildren: EmptyArray,
     velements: EmptyArray,
-    cmpProps: create(null),
-    cmpFields: create(null),
-    cmpSlots: {
-      slotAssignments: create(null)
-    },
+    cmpProps: create$1(null),
+    cmpFields: create$1(null),
+    cmpSlots: create$1(null),
+    oar: create$1(null),
     cmpTemplate: null,
-    hydrated: Boolean(hydrated),
-    renderMode: def.renderMode,
     context: {
-      stylesheetToken: undefined,
-      hasTokenInClass: undefined,
-      hasTokenInAttribute: undefined,
-      hasScopedStyles: undefined,
-      styleVNodes: null,
+      hostAttribute: undefined,
+      shadowAttribute: undefined,
+      styleVNode: null,
       tplCache: EmptyObject,
       wiredConnecting: EmptyArray,
       wiredDisconnecting: EmptyArray
     },
-    // Properties set right after VM creation.
     tro: null,
-    shadowMode: null,
-    // Properties set by the LightningElement constructor.
     component: null,
-    shadowRoot: null,
-    renderRoot: null,
+    cmpRoot: null,
     callHook,
     setHook,
-    getHook,
-    renderer
+    getHook
   };
-  {
-    vm.debugInfo = create(null);
-  }
-  vm.shadowMode = computeShadowMode(vm, renderer);
   vm.tro = getTemplateReactiveObserver(vm);
   {
     vm.toString = () => {
       return `[object:vm ${def.name} (${vm.idx})]`;
     };
-    if (lwcRuntimeFlags.ENABLE_FORCE_NATIVE_SHADOW_MODE_FOR_TEST) {
-      vm.shadowMode = 0 /* ShadowMode.Native */;
-    }
-  }
-  // Create component instance associated to the vm and the element.
-  invokeComponentConstructor(vm, def.ctor);
-  // Initializing the wire decorator per instance only when really needed
-  if (hasWireAdapters(vm)) {
+  } // Create component instance associated to the vm and the element.
+
+  createComponent(vm, def.ctor); // Initializing the wire decorator per instance only when really needed
+
+  if (isFalse$1$1(renderer.ssr) && hasWireAdapters(vm)) {
     installWireAdapters(vm);
   }
   return vm;
 }
-function computeShadowMode(vm, renderer) {
-  const {
-    def
-  } = vm;
-  const {
-    isSyntheticShadowDefined,
-    isNativeShadowDefined
-  } = renderer;
-  let shadowMode;
-  if (isSyntheticShadowDefined) {
-    if (def.renderMode === 0 /* RenderMode.Light */) {
-      // ShadowMode.Native implies "not synthetic shadow" which is consistent with how
-      // everything defaults to native when the synthetic shadow polyfill is unavailable.
-      shadowMode = 0 /* ShadowMode.Native */;
-    } else if (isNativeShadowDefined) {
-      // Not combined with above condition because @lwc/features only supports identifiers in
-      // the if-condition.
-      if (lwcRuntimeFlags.ENABLE_MIXED_SHADOW_MODE) {
-        if (def.shadowSupportMode === "any" /* ShadowSupportMode.Any */) {
-          shadowMode = 0 /* ShadowMode.Native */;
-        } else {
-          const shadowAncestor = getNearestShadowAncestor(vm);
-          if (!isNull(shadowAncestor) && shadowAncestor.shadowMode === 0 /* ShadowMode.Native */) {
-            // Transitive support for native Shadow DOM. A component in native mode
-            // transitively opts all of its descendants into native.
-            shadowMode = 0 /* ShadowMode.Native */;
-          } else {
-            // Synthetic if neither this component nor any of its ancestors are configured
-            // to be native.
-            shadowMode = 1 /* ShadowMode.Synthetic */;
-          }
-        }
-      } else {
-        shadowMode = 1 /* ShadowMode.Synthetic */;
-      }
-    } else {
-      // Synthetic if there is no native Shadow DOM support.
-      shadowMode = 1 /* ShadowMode.Synthetic */;
-    }
-  } else {
-    // Native if the synthetic shadow polyfill is unavailable.
-    shadowMode = 0 /* ShadowMode.Native */;
-  }
-
-  return shadowMode;
-}
 function assertIsVM(obj) {
-  if (isNull(obj) || !isObject(obj) || !('renderRoot' in obj)) {
+  if (isNull$1(obj) || !isObject$2(obj) || !('cmpRoot' in obj)) {
     throw new TypeError(`${obj} is not a VM.`);
   }
 }
 function associateVM(obj, vm) {
-  ViewModelReflection.set(obj, vm);
+  setHiddenField$1(obj, ViewModelReflection, vm);
 }
 function getAssociatedVM(obj) {
-  const vm = ViewModelReflection.get(obj);
+  const vm = getHiddenField$1(obj, ViewModelReflection);
   {
     assertIsVM(vm);
   }
   return vm;
 }
 function getAssociatedVMIfPresent(obj) {
-  const maybeVm = ViewModelReflection.get(obj);
+  const maybeVm = getHiddenField$1(obj, ViewModelReflection);
   {
     if (!isUndefined$1(maybeVm)) {
       assertIsVM(maybeVm);
@@ -5619,36 +5054,40 @@ function getAssociatedVMIfPresent(obj) {
   return maybeVm;
 }
 function rehydrate(vm) {
-  if (isTrue(vm.isDirty)) {
+  if (isTrue$1$1(vm.isDirty)) {
     const children = renderComponent(vm);
     patchShadowRoot(vm, children);
   }
 }
 function patchShadowRoot(vm, newCh) {
   const {
-    renderRoot,
-    children: oldCh,
-    renderer
-  } = vm;
-  // caching the new children collection
+    cmpRoot,
+    children: oldCh
+  } = vm; // caching the new children collection
+
   vm.children = newCh;
   if (newCh.length > 0 || oldCh.length > 0) {
     // patch function mutates vnodes by adding the element reference,
     // however, if patching fails it contains partial changes.
     if (oldCh !== newCh) {
+      const fn = hasDynamicChildren(newCh) ? updateDynamicChildren : updateStaticChildren;
       runWithBoundaryProtection(vm, vm, () => {
         // pre
-        logOperationStart(2 /* OperationId.Patch */, vm);
+        {
+          startMeasure('patch', vm);
+        }
       }, () => {
         // job
-        patchChildren(oldCh, newCh, renderRoot, renderer);
+        fn(cmpRoot, oldCh, newCh);
       }, () => {
         // post
-        logOperationEnd(2 /* OperationId.Patch */, vm);
+        {
+          endMeasure('patch', vm);
+        }
       });
     }
   }
-  if (vm.state === 1 /* VMState.connected */) {
+  if (vm.state === VMState.connected) {
     // If the element is connected, that means connectedCallback was already issued, and
     // any successive rendering should finish with the call to renderedCallback, otherwise
     // the connectedCallback will take care of calling it in the right order at the end of
@@ -5657,31 +5096,26 @@ function patchShadowRoot(vm, newCh) {
   }
 }
 function runRenderedCallback(vm) {
-  const {
-    def: {
-      renderedCallback
-    }
-  } = vm;
+  if (isTrue$1$1(vm.renderer.ssr)) {
+    return;
+  }
   const {
     rendered
   } = Services;
   if (rendered) {
     invokeServiceHook(vm, rendered);
   }
-  if (!isUndefined$1(renderedCallback)) {
-    logOperationStart(4 /* OperationId.RenderedCallback */, vm);
-    invokeComponentCallback(vm, renderedCallback);
-    logOperationEnd(4 /* OperationId.RenderedCallback */, vm);
-  }
+  invokeComponentRenderedCallback(vm);
 }
 let rehydrateQueue = [];
 function flushRehydrationQueue() {
-  logGlobalOperationStart(8 /* OperationId.GlobalRehydrate */);
+  startGlobalMeasure(GlobalMeasurementPhase.REHYDRATE);
   {
-    assert.invariant(rehydrateQueue.length, `If rehydrateQueue was scheduled, it is because there must be at least one VM on this pending queue instead of ${rehydrateQueue}.`);
+    assert$1.invariant(rehydrateQueue.length, `If rehydrateQueue was scheduled, it is because there must be at least one VM on this pending queue instead of ${rehydrateQueue}.`);
   }
   const vms = rehydrateQueue.sort((a, b) => a.idx - b.idx);
   rehydrateQueue = []; // reset to a new queue
+
   for (let i = 0, len = vms.length; i < len; i += 1) {
     const vm = vms[i];
     try {
@@ -5692,29 +5126,28 @@ function flushRehydrationQueue() {
         if (rehydrateQueue.length === 0) {
           addCallbackToNextTick(flushRehydrationQueue);
         }
-        ArrayUnshift.apply(rehydrateQueue, ArraySlice.call(vms, i + 1));
-      }
-      // we need to end the measure before throwing.
-      logGlobalOperationEnd(8 /* OperationId.GlobalRehydrate */);
-      // re-throwing the original error will break the current tick, but since the next tick is
+        ArrayUnshift$2.apply(rehydrateQueue, ArraySlice$2.call(vms, i + 1));
+      } // we need to end the measure before throwing.
+
+      endGlobalMeasure(GlobalMeasurementPhase.REHYDRATE); // re-throwing the original error will break the current tick, but since the next tick is
       // already scheduled, it should continue patching the rest.
+
       throw error; // eslint-disable-line no-unsafe-finally
     }
   }
 
-  logGlobalOperationEnd(8 /* OperationId.GlobalRehydrate */);
+  endGlobalMeasure(GlobalMeasurementPhase.REHYDRATE);
 }
-
 function runConnectedCallback(vm) {
   const {
     state
   } = vm;
-  if (state === 1 /* VMState.connected */) {
+  if (state === VMState.connected) {
     return; // nothing to do since it was already connected
   }
 
-  vm.state = 1 /* VMState.connected */;
-  // reporting connection
+  vm.state = VMState.connected; // reporting connection
+
   const {
     connected
   } = Services;
@@ -5728,9 +5161,13 @@ function runConnectedCallback(vm) {
     connectedCallback
   } = vm.def;
   if (!isUndefined$1(connectedCallback)) {
-    logOperationStart(3 /* OperationId.ConnectedCallback */, vm);
+    {
+      startMeasure('connectedCallback', vm);
+    }
     invokeComponentCallback(vm, connectedCallback);
-    logOperationEnd(3 /* OperationId.ConnectedCallback */, vm);
+    {
+      endMeasure('connectedCallback', vm);
+    }
   }
 }
 function hasWireAdapters(vm) {
@@ -5738,17 +5175,17 @@ function hasWireAdapters(vm) {
 }
 function runDisconnectedCallback(vm) {
   {
-    assert.isTrue(vm.state !== 2 /* VMState.disconnected */, `${vm} must be inserted.`);
+    assert$1.isTrue(vm.state !== VMState.disconnected, `${vm} must be inserted.`);
   }
-  if (isFalse(vm.isDirty)) {
+  if (isFalse$1$1(vm.isDirty)) {
     // this guarantees that if the component is reused/reinserted,
     // it will be re-rendered because we are disconnecting the reactivity
     // linking, so mutations are not automatically reflected on the state
     // of disconnected components.
     vm.isDirty = true;
   }
-  vm.state = 2 /* VMState.disconnected */;
-  // reporting disconnection
+  vm.state = VMState.disconnected; // reporting disconnection
+
   const {
     disconnected
   } = Services;
@@ -5762,33 +5199,37 @@ function runDisconnectedCallback(vm) {
     disconnectedCallback
   } = vm.def;
   if (!isUndefined$1(disconnectedCallback)) {
-    logOperationStart(5 /* OperationId.DisconnectedCallback */, vm);
+    {
+      startMeasure('disconnectedCallback', vm);
+    }
     invokeComponentCallback(vm, disconnectedCallback);
-    logOperationEnd(5 /* OperationId.DisconnectedCallback */, vm);
+    {
+      endMeasure('disconnectedCallback', vm);
+    }
   }
 }
-function runChildNodesDisconnectedCallback(vm) {
+function runShadowChildNodesDisconnectedCallback(vm) {
   const {
     velements: vCustomElementCollection
-  } = vm;
-  // Reporting disconnection for every child in inverse order since they are
+  } = vm; // Reporting disconnection for every child in inverse order since they are
   // inserted in reserved order.
+
   for (let i = vCustomElementCollection.length - 1; i >= 0; i -= 1) {
     const {
       elm
-    } = vCustomElementCollection[i];
-    // There are two cases where the element could be undefined:
+    } = vCustomElementCollection[i]; // There are two cases where the element could be undefined:
     // * when there is an error during the construction phase, and an error
     //   boundary picks it, there is a possibility that the VCustomElement
     //   is not properly initialized, and therefore is should be ignored.
     // * when slotted custom element is not used by the element where it is
     //   slotted into it, as  a result, the custom element was never
     //   initialized.
+
     if (!isUndefined$1(elm)) {
-      const childVM = getAssociatedVMIfPresent(elm);
-      // The VM associated with the element might be associated undefined
+      const childVM = getAssociatedVMIfPresent(elm); // The VM associated with the element might be associated undefined
       // in the case where the VM failed in the middle of its creation,
       // eg: constructor throwing before invoking super().
+
       if (!isUndefined$1(childVM)) {
         resetComponentStateWhenRemoved(childVM);
       }
@@ -5808,48 +5249,43 @@ function runLightChildNodesDisconnectedCallback(vm) {
  * custom element itself will trigger the removal of anything slotted or anything
  * defined on its shadow.
  */
+
 function recursivelyDisconnectChildren(vnodes) {
   for (let i = 0, len = vnodes.length; i < len; i += 1) {
     const vnode = vnodes[i];
-    if (!isNull(vnode) && !isUndefined$1(vnode.elm)) {
-      switch (vnode.type) {
-        case 2 /* VNodeType.Element */:
-          recursivelyDisconnectChildren(vnode.children);
-          break;
-        case 3 /* VNodeType.CustomElement */:
-          {
-            const vm = getAssociatedVM(vnode.elm);
-            resetComponentStateWhenRemoved(vm);
-            break;
-          }
+    if (!isNull$1(vnode) && isArray$2(vnode.children) && !isUndefined$1(vnode.elm)) {
+      // vnode is a VElement with children
+      if (isUndefined$1(vnode.ctor)) {
+        // it is a VElement, just keep looking (recursively)
+        recursivelyDisconnectChildren(vnode.children);
+      } else {
+        // it is a VCustomElement, disconnect it and ignore its children
+        resetComponentStateWhenRemoved(getAssociatedVM(vnode.elm));
       }
     }
   }
-}
-// This is a super optimized mechanism to remove the content of the root node (shadow root
-// for shadow DOM components and the root element itself for light DOM) without having to go
+} // This is a super optimized mechanism to remove the content of the shadowRoot without having to go
 // into snabbdom. Especially useful when the reset is a consequence of an error, in which case the
 // children VNodes might not be representing the current state of the DOM.
-function resetComponentRoot(vm) {
+
+function resetShadowRoot(vm) {
   const {
     children,
-    renderRoot,
-    renderer: {
-      remove
-    }
+    cmpRoot,
+    renderer
   } = vm;
   for (let i = 0, len = children.length; i < len; i++) {
     const child = children[i];
-    if (!isNull(child) && !isUndefined$1(child.elm)) {
-      remove(child.elm, renderRoot);
+    if (!isNull$1(child) && !isUndefined$1(child.elm)) {
+      renderer.remove(child.elm, cmpRoot);
     }
   }
   vm.children = EmptyArray;
-  runChildNodesDisconnectedCallback(vm);
+  runShadowChildNodesDisconnectedCallback(vm);
   vm.velements = EmptyArray;
 }
 function scheduleRehydration(vm) {
-  if (isTrue(vm.isScheduled)) {
+  if (isTrue$1$1(vm.renderer.ssr) || isTrue$1$1(vm.isScheduled)) {
     return;
   }
   vm.isScheduled = true;
@@ -5860,11 +5296,66 @@ function scheduleRehydration(vm) {
 }
 function getErrorBoundaryVM(vm) {
   let currentVm = vm;
-  while (!isNull(currentVm)) {
+  while (!isNull$1(currentVm)) {
     if (!isUndefined$1(currentVm.def.errorCallback)) {
       return currentVm;
     }
     currentVm = currentVm.owner;
+  }
+} // slow path routine
+// NOTE: we should probably more this routine to the synthetic shadow folder
+// and get the allocation to be cached by in the elm instead of in the VM
+
+function allocateInSlot(vm, children) {
+  {
+    assert$1.invariant(isObject$2(vm.cmpSlots), `When doing manual allocation, there must be a cmpSlots object available.`);
+  }
+  const {
+    cmpSlots: oldSlots
+  } = vm;
+  const cmpSlots = vm.cmpSlots = create$1(null);
+  for (let i = 0, len = children.length; i < len; i += 1) {
+    const vnode = children[i];
+    if (isNull$1(vnode)) {
+      continue;
+    }
+    const {
+      data
+    } = vnode;
+    const slotName = data.attrs && data.attrs.slot || '';
+    const vnodes = cmpSlots[slotName] = cmpSlots[slotName] || []; // re-keying the vnodes is necessary to avoid conflicts with default content for the slot
+    // which might have similar keys. Each vnode will always have a key that
+    // starts with a numeric character from compiler. In this case, we add a unique
+    // notation for slotted vnodes keys, e.g.: `@foo:1:1`
+
+    if (!isUndefined$1(vnode.key)) {
+      vnode.key = `@${slotName}:${vnode.key}`;
+    }
+    ArrayPush$1.call(vnodes, vnode);
+  }
+  if (isFalse$1$1(vm.isDirty)) {
+    // We need to determine if the old allocation is really different from the new one
+    // and mark the vm as dirty
+    const oldKeys = keys$1(oldSlots);
+    if (oldKeys.length !== keys$1(cmpSlots).length) {
+      markComponentAsDirty(vm);
+      return;
+    }
+    for (let i = 0, len = oldKeys.length; i < len; i += 1) {
+      const key = oldKeys[i];
+      if (isUndefined$1(cmpSlots[key]) || oldSlots[key].length !== cmpSlots[key].length) {
+        markComponentAsDirty(vm);
+        return;
+      }
+      const oldVNodes = oldSlots[key];
+      const vnodes = cmpSlots[key];
+      for (let j = 0, a = cmpSlots[key].length; j < a; j += 1) {
+        if (oldVNodes[j] !== vnodes[j]) {
+          markComponentAsDirty(vm);
+          return;
+        }
+      }
+    }
   }
 }
 function runWithBoundaryProtection(vm, owner, pre, job, post) {
@@ -5878,17 +5369,22 @@ function runWithBoundaryProtection(vm, owner, pre, job, post) {
     post();
     if (!isUndefined$1(error)) {
       addErrorComponentStack(vm, error);
-      const errorBoundaryVm = isNull(owner) ? undefined : getErrorBoundaryVM(owner);
+      const errorBoundaryVm = isNull$1(owner) ? undefined : getErrorBoundaryVM(owner);
       if (isUndefined$1(errorBoundaryVm)) {
         throw error; // eslint-disable-line no-unsafe-finally
       }
 
-      resetComponentRoot(vm); // remove offenders
-      logOperationStart(6 /* OperationId.ErrorCallback */, vm);
-      // error boundaries must have an ErrorCallback
+      resetShadowRoot(vm); // remove offenders
+
+      {
+        startMeasure('errorCallback', errorBoundaryVm);
+      } // error boundaries must have an ErrorCallback
+
       const errorCallback = errorBoundaryVm.def.errorCallback;
       invokeComponentCallback(errorBoundaryVm, errorCallback, [error, error.wcStack]);
-      logOperationEnd(6 /* OperationId.ErrorCallback */, vm);
+      {
+        endMeasure('errorCallback', errorBoundaryVm);
+      }
     }
   }
 }
@@ -5901,8 +5397,8 @@ function runWithBoundaryProtection(vm, owner, pre, job, post) {
  */
 const DeprecatedWiredElementHost = '$$DeprecatedWiredElementHostKey$$';
 const DeprecatedWiredParamsMeta = '$$DeprecatedWiredParamsMetaKey$$';
-const WIRE_DEBUG_ENTRY = '@wire';
 const WireMetaMap = new Map();
+function noop$3() {}
 class WireContextRegistrationEvent extends CustomEvent {
   constructor(adapterToken, {
     setNewContext,
@@ -5912,7 +5408,7 @@ class WireContextRegistrationEvent extends CustomEvent {
       bubbles: true,
       composed: true
     });
-    defineProperties(this, {
+    defineProperties$1(this, {
       setNewContext: {
         value: setNewContext
       },
@@ -5921,50 +5417,56 @@ class WireContextRegistrationEvent extends CustomEvent {
       }
     });
   }
-  /*LWC compiler v2.32.1*/
 }
 function createFieldDataCallback(vm, name) {
+  const {
+    cmpFields
+  } = vm;
   return value => {
-    updateComponentValue(vm, name, value);
+    if (value !== vm.cmpFields[name]) {
+      // storing the value in the underlying storage
+      cmpFields[name] = value;
+      componentValueMutated(vm, name);
+    }
   };
 }
 function createMethodDataCallback(vm, method) {
   return value => {
     // dispatching new value into the wired method
-    runWithBoundaryProtection(vm, vm.owner, noop, () => {
-      // job
-      method.call(vm.component, value);
-    }, noop);
+    invokeComponentCallback(vm, method, [value]);
   };
 }
-function createConfigWatcher(component, configCallback, callbackWhenConfigIsReady) {
-  let hasPendingConfig = false;
-  // creating the reactive observer for reactive params when needed
-  const ro = createReactiveObserver(() => {
+function createConfigWatcher(vm, wireDef, callbackWhenConfigIsReady) {
+  const {
+    component
+  } = vm;
+  const {
+    configCallback
+  } = wireDef;
+  let hasPendingConfig = false; // creating the reactive observer for reactive params when needed
+
+  const ro = new ReactiveObserver(() => {
     if (hasPendingConfig === false) {
-      hasPendingConfig = true;
-      // collect new config in the micro-task
+      hasPendingConfig = true; // collect new config in the micro-task
+
       Promise.resolve().then(() => {
-        hasPendingConfig = false;
-        // resetting current reactive params
-        ro.reset();
-        // dispatching a new config due to a change in the configuration
-        computeConfigAndUpdate();
+        hasPendingConfig = false; // resetting current reactive params
+
+        ro.reset(); // dispatching a new config due to a change in the configuration
+
+        callback();
       });
     }
   });
-  const computeConfigAndUpdate = () => {
+  const callback = () => {
     let config;
-    ro.observe(() => config = configCallback(component));
-    // eslint-disable-next-line @lwc/lwc-internal/no-invalid-todo
+    ro.observe(() => config = configCallback(component)); // eslint-disable-next-line lwc-internal/no-invalid-todo
     // TODO: dev-mode validation of config based on the adapter.configSchema
     // @ts-ignore it is assigned in the observe() callback
+
     callbackWhenConfigIsReady(config);
   };
-  return {
-    computeConfigAndUpdate,
-    ro
-  };
+  return callback;
 }
 function createContextWatcher(vm, wireDef, callbackWhenContextIsReady) {
   const {
@@ -5977,15 +5479,13 @@ function createContextWatcher(vm, wireDef, callbackWhenContextIsReady) {
 
   const {
     elm,
+    renderer,
     context: {
       wiredConnecting,
       wiredDisconnecting
-    },
-    renderer: {
-      dispatchEvent
     }
-  } = vm;
-  // waiting for the component to be connected to formally request the context via the token
+  } = vm; // waiting for the component to be connected to formally request the context via the token
+
   ArrayPush$1.call(wiredConnecting, () => {
     // This event is responsible for connecting the host element with another
     // element in the composed path that is providing contextual data. The provider
@@ -5994,7 +5494,7 @@ function createContextWatcher(vm, wireDef, callbackWhenContextIsReady) {
     // guarantee that the linkage can be forged.
     const contextRegistrationEvent = new WireContextRegistrationEvent(adapterContextToken, {
       setNewContext(newContext) {
-        // eslint-disable-next-line @lwc/lwc-internal/no-invalid-todo
+        // eslint-disable-next-line lwc-internal/no-invalid-todo
         // TODO: dev-mode validation of config based on the adapter.contextSchema
         callbackWhenContextIsReady(newContext);
       },
@@ -6004,7 +5504,7 @@ function createContextWatcher(vm, wireDef, callbackWhenContextIsReady) {
         ArrayPush$1.call(wiredDisconnecting, disconnectCallback);
       }
     });
-    dispatchEvent(elm, contextRegistrationEvent);
+    renderer.dispatchEvent(elm, contextRegistrationEvent);
   });
 }
 function createConnector(vm, name, wireDef) {
@@ -6014,78 +5514,64 @@ function createConnector(vm, name, wireDef) {
     configCallback,
     dynamic
   } = wireDef;
-  let debugInfo;
-  {
-    const wiredPropOrMethod = isUndefined$1(method) ? name : method.name;
-    debugInfo = create(null);
-    debugInfo.wasDataProvisionedForConfig = false;
-    vm.debugInfo[WIRE_DEBUG_ENTRY][wiredPropOrMethod] = debugInfo;
-  }
-  const fieldOrMethodCallback = isUndefined$1(method) ? createFieldDataCallback(vm, name) : createMethodDataCallback(vm, method);
-  const dataCallback = value => {
-    {
-      debugInfo.data = value;
-      // Note: most of the time, the data provided is for the current config, but there may be
-      // some conditions in which it does not, ex:
-      // race conditions in a poor network while the adapter does not cancel a previous request.
-      debugInfo.wasDataProvisionedForConfig = true;
-    }
-    fieldOrMethodCallback(value);
-  };
+  const hasDynamicParams = dynamic.length > 0;
+  const {
+    component
+  } = vm;
+  const dataCallback = isUndefined$1(method) ? createFieldDataCallback(vm, name) : createMethodDataCallback(vm, method);
   let context;
-  let connector;
-  // Workaround to pass the component element associated to this wire adapter instance.
-  defineProperty(dataCallback, DeprecatedWiredElementHost, {
+  let connector; // Workaround to pass the component element associated to this wire adapter instance.
+
+  defineProperty$1(dataCallback, DeprecatedWiredElementHost, {
     value: vm.elm
   });
-  defineProperty(dataCallback, DeprecatedWiredParamsMeta, {
+  defineProperty$1(dataCallback, DeprecatedWiredParamsMeta, {
     value: dynamic
   });
-  runWithBoundaryProtection(vm, vm, noop, () => {
+  runWithBoundaryProtection(vm, vm, noop$3, () => {
     // job
     connector = new adapter(dataCallback);
-  }, noop);
+  }, noop$3);
   const updateConnectorConfig = config => {
     // every time the config is recomputed due to tracking,
     // this callback will be invoked with the new computed config
-    runWithBoundaryProtection(vm, vm, noop, () => {
+    runWithBoundaryProtection(vm, vm, noop$3, () => {
       // job
-      if ("development" !== 'production') {
-        debugInfo.config = config;
-        debugInfo.context = context;
-        debugInfo.wasDataProvisionedForConfig = false;
-      }
       connector.update(config, context);
-    }, noop);
+    }, noop$3);
+  }; // Computes the current wire config and calls the update method on the wire adapter.
+  // This initial implementation may change depending on the specific wire instance, if it has params, we will need
+  // to observe changes in the next tick.
+
+  let computeConfigAndUpdate = () => {
+    updateConnectorConfig(configCallback(component));
   };
-  // Computes the current wire config and calls the update method on the wire adapter.
-  // If it has params, we will need to observe changes in the next tick.
-  const {
-    computeConfigAndUpdate,
-    ro
-  } = createConfigWatcher(vm.component, configCallback, updateConnectorConfig);
-  // if the adapter needs contextualization, we need to watch for new context and push it alongside the config
+  if (hasDynamicParams) {
+    // This wire has dynamic parameters: we wait for the component instance is created and its values set
+    // in order to call the update(config) method.
+    Promise.resolve().then(() => {
+      computeConfigAndUpdate = createConfigWatcher(vm, wireDef, updateConnectorConfig);
+      computeConfigAndUpdate();
+    });
+  } else {
+    computeConfigAndUpdate();
+  } // if the adapter needs contextualization, we need to watch for new context and push it alongside the config
+
   if (!isUndefined$1(adapter.contextSchema)) {
     createContextWatcher(vm, wireDef, newContext => {
       // every time the context is pushed into this component,
       // this callback will be invoked with the new computed context
       if (context !== newContext) {
-        context = newContext;
-        // Note: when new context arrives, the config will be recomputed and pushed along side the new
+        context = newContext; // Note: when new context arrives, the config will be recomputed and pushed along side the new
         // context, this is to preserve the identity characteristics, config should not have identity
         // (ever), while context can have identity
-        if (vm.state === 1 /* VMState.connected */) {
-          computeConfigAndUpdate();
-        }
+
+        computeConfigAndUpdate();
       }
     });
-  }
-  return {
-    // @ts-ignore the boundary protection executes sync, connector is always defined
-    connector,
-    computeConfigAndUpdate,
-    resetConfigWatcher: () => ro.reset()
-  };
+  } // @ts-ignore the boundary protection executes sync, connector is always defined
+
+  return connector;
 }
 const AdapterToTokenMap = new Map();
 function getAdapterToken(adapter) {
@@ -6124,38 +5610,18 @@ function installWireAdapters(vm) {
       wire
     }
   } = vm;
-  {
-    vm.debugInfo[WIRE_DEBUG_ENTRY] = create(null);
-  }
   const wiredConnecting = context.wiredConnecting = [];
   const wiredDisconnecting = context.wiredDisconnecting = [];
   for (const fieldNameOrMethod in wire) {
     const descriptor = wire[fieldNameOrMethod];
     const wireDef = WireMetaMap.get(descriptor);
     {
-      assert.invariant(wireDef, `Internal Error: invalid wire definition found.`);
+      assert$1.invariant(wireDef, `Internal Error: invalid wire definition found.`);
     }
     if (!isUndefined$1(wireDef)) {
-      const {
-        connector,
-        computeConfigAndUpdate,
-        resetConfigWatcher
-      } = createConnector(vm, fieldNameOrMethod, wireDef);
-      const hasDynamicParams = wireDef.dynamic.length > 0;
-      ArrayPush$1.call(wiredConnecting, () => {
-        connector.connect();
-        if (!lwcRuntimeFlags.ENABLE_WIRE_SYNC_EMIT) {
-          if (hasDynamicParams) {
-            Promise.resolve().then(computeConfigAndUpdate);
-            return;
-          }
-        }
-        computeConfigAndUpdate();
-      });
-      ArrayPush$1.call(wiredDisconnecting, () => {
-        connector.disconnect();
-        resetConfigWatcher();
-      });
+      const adapterInstance = createConnector(vm, fieldNameOrMethod, wireDef);
+      ArrayPush$1.call(wiredConnecting, () => adapterInstance.connect());
+      ArrayPush$1.call(wiredDisconnecting, () => adapterInstance.disconnect());
     }
   }
 }
@@ -6171,486 +5637,14 @@ function disconnectWireAdapters(vm) {
   const {
     wiredDisconnecting
   } = vm.context;
-  runWithBoundaryProtection(vm, vm, noop, () => {
+  runWithBoundaryProtection(vm, vm, noop$3, () => {
     // job
     for (let i = 0, len = wiredDisconnecting.length; i < len; i += 1) {
       wiredDisconnecting[i]();
     }
-  }, noop);
+  }, noop$3);
 }
-
-/*
- * Copyright (c) 2022, salesforce.com, inc.
- * All rights reserved.
- * SPDX-License-Identifier: MIT
- * For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/MIT
- */
-// flag indicating if the hydration recovered from the DOM mismatch
-let hasMismatch = false;
-function hydrateRoot(vm) {
-  hasMismatch = false;
-  runConnectedCallback(vm);
-  hydrateVM(vm);
-  if (hasMismatch) {
-    logError('Hydration completed with errors.', vm);
-  }
-}
-function hydrateVM(vm) {
-  const children = renderComponent(vm);
-  vm.children = children;
-  const {
-    renderRoot: parentNode,
-    renderer: {
-      getFirstChild
-    }
-  } = vm;
-  hydrateChildren(getFirstChild(parentNode), children, parentNode, vm);
-  runRenderedCallback(vm);
-}
-function hydrateNode(node, vnode, renderer) {
-  var _a, _b;
-  let hydratedNode;
-  switch (vnode.type) {
-    case 0 /* VNodeType.Text */:
-      // VText has no special capability, fallback to the owner's renderer
-      hydratedNode = hydrateText(node, vnode, renderer);
-      break;
-    case 1 /* VNodeType.Comment */:
-      // VComment has no special capability, fallback to the owner's renderer
-      hydratedNode = hydrateComment(node, vnode, renderer);
-      break;
-    case 4 /* VNodeType.Static */:
-      // VStatic are cacheable and cannot have custom renderer associated to them
-      hydratedNode = hydrateStaticElement(node, vnode, renderer);
-      break;
-    case 5 /* VNodeType.Fragment */:
-      // a fragment does not represent any element, therefore there is no need to use a custom renderer.
-      hydratedNode = hydrateFragment(node, vnode, renderer);
-      break;
-    case 2 /* VNodeType.Element */:
-      hydratedNode = hydrateElement(node, vnode, (_a = vnode.data.renderer) !== null && _a !== void 0 ? _a : renderer);
-      break;
-    case 3 /* VNodeType.CustomElement */:
-      hydratedNode = hydrateCustomElement(node, vnode, (_b = vnode.data.renderer) !== null && _b !== void 0 ? _b : renderer);
-      break;
-  }
-  return renderer.nextSibling(hydratedNode);
-}
-const NODE_VALUE_PROP = 'nodeValue';
-function hydrateText(node, vnode, renderer) {
-  var _a;
-  if (!hasCorrectNodeType(vnode, node, 3 /* EnvNodeTypes.TEXT */, renderer)) {
-    return handleMismatch(node, vnode, renderer);
-  }
-  {
-    const {
-      getProperty
-    } = renderer;
-    const nodeValue = getProperty(node, NODE_VALUE_PROP);
-    if (nodeValue !== vnode.text && !(nodeValue === '\u200D' && vnode.text === '')) {
-      logWarn('Hydration mismatch: text values do not match, will recover from the difference', vnode.owner);
-    }
-  }
-  const {
-    setText
-  } = renderer;
-  setText(node, (_a = vnode.text) !== null && _a !== void 0 ? _a : null);
-  vnode.elm = node;
-  return node;
-}
-function hydrateComment(node, vnode, renderer) {
-  var _a;
-  if (!hasCorrectNodeType(vnode, node, 8 /* EnvNodeTypes.COMMENT */, renderer)) {
-    return handleMismatch(node, vnode, renderer);
-  }
-  {
-    const {
-      getProperty
-    } = renderer;
-    const nodeValue = getProperty(node, NODE_VALUE_PROP);
-    if (nodeValue !== vnode.text) {
-      logWarn('Hydration mismatch: comment values do not match, will recover from the difference', vnode.owner);
-    }
-  }
-  const {
-    setProperty
-  } = renderer;
-  setProperty(node, NODE_VALUE_PROP, (_a = vnode.text) !== null && _a !== void 0 ? _a : null);
-  vnode.elm = node;
-  return node;
-}
-function hydrateStaticElement(elm, vnode, renderer) {
-  if (!areCompatibleNodes(vnode.fragment, elm, vnode, renderer)) {
-    return handleMismatch(elm, vnode, renderer);
-  }
-  vnode.elm = elm;
-  return elm;
-}
-function hydrateFragment(elm, vnode, renderer) {
-  const {
-    children,
-    owner
-  } = vnode;
-  hydrateChildren(elm, children, renderer.getProperty(elm, 'parentNode'), owner);
-  return vnode.elm = children[children.length - 1].elm;
-}
-function hydrateElement(elm, vnode, renderer) {
-  if (!hasCorrectNodeType(vnode, elm, 1 /* EnvNodeTypes.ELEMENT */, renderer) || !isMatchingElement(vnode, elm, renderer)) {
-    return handleMismatch(elm, vnode, renderer);
-  }
-  vnode.elm = elm;
-  const {
-    owner
-  } = vnode;
-  const {
-    context
-  } = vnode.data;
-  const isDomManual = Boolean(!isUndefined$1(context) && !isUndefined$1(context.lwc) && context.lwc.dom === "manual" /* LwcDomMode.Manual */);
-  if (isDomManual) {
-    // it may be that this element has lwc:inner-html, we need to diff and in case are the same,
-    // remove the innerHTML from props so it reuses the existing dom elements.
-    const {
-      data: {
-        props
-      }
-    } = vnode;
-    const {
-      getProperty
-    } = renderer;
-    if (!isUndefined$1(props) && !isUndefined$1(props.innerHTML)) {
-      if (getProperty(elm, 'innerHTML') === props.innerHTML) {
-        // Do a shallow clone since VNodeData may be shared across VNodes due to hoist optimization
-        vnode.data = Object.assign(Object.assign({}, vnode.data), {
-          props: cloneAndOmitKey(props, 'innerHTML')
-        });
-      } else {
-        {
-          logWarn(`Mismatch hydrating element <${getProperty(elm, 'tagName').toLowerCase()}>: innerHTML values do not match for element, will recover from the difference`, owner);
-        }
-      }
-    }
-  }
-  patchElementPropsAndAttrs(vnode, renderer);
-  if (!isDomManual) {
-    const {
-      getFirstChild
-    } = renderer;
-    hydrateChildren(getFirstChild(elm), vnode.children, elm, owner);
-  }
-  return elm;
-}
-function hydrateCustomElement(elm, vnode, renderer) {
-  if (!hasCorrectNodeType(vnode, elm, 1 /* EnvNodeTypes.ELEMENT */, renderer) || !isMatchingElement(vnode, elm, renderer)) {
-    return handleMismatch(elm, vnode, renderer);
-  }
-  const {
-    sel,
-    mode,
-    ctor,
-    owner
-  } = vnode;
-  const vm = createVM(elm, ctor, renderer, {
-    mode,
-    owner,
-    tagName: sel,
-    hydrated: true
-  });
-  vnode.elm = elm;
-  vnode.vm = vm;
-  allocateChildren(vnode, vm);
-  patchElementPropsAndAttrs(vnode, renderer);
-  // Insert hook section:
-  {
-    assert.isTrue(vm.state === 0 /* VMState.created */, `${vm} cannot be recycled.`);
-  }
-  runConnectedCallback(vm);
-  if (vm.renderMode !== 0 /* RenderMode.Light */) {
-    const {
-      getFirstChild
-    } = renderer;
-    // VM is not rendering in Light DOM, we can proceed and hydrate the slotted content.
-    // Note: for Light DOM, this is handled while hydrating the VM
-    hydrateChildren(getFirstChild(elm), vnode.children, elm, vm);
-  }
-  hydrateVM(vm);
-  return elm;
-}
-function hydrateChildren(node, children, parentNode, owner) {
-  let hasWarned = false;
-  let nextNode = node;
-  let anchor = null;
-  const {
-    renderer
-  } = owner;
-  for (let i = 0; i < children.length; i++) {
-    const childVnode = children[i];
-    if (!isNull(childVnode)) {
-      if (nextNode) {
-        nextNode = hydrateNode(nextNode, childVnode, renderer);
-        anchor = childVnode.elm;
-      } else {
-        hasMismatch = true;
-        {
-          if (!hasWarned) {
-            hasWarned = true;
-            logError(`Hydration mismatch: incorrect number of rendered nodes. Client produced more nodes than the server.`, owner);
-          }
-        }
-        mount(childVnode, parentNode, renderer, anchor);
-        anchor = childVnode.elm;
-      }
-    }
-  }
-  if (nextNode) {
-    hasMismatch = true;
-    {
-      if (!hasWarned) {
-        logError(`Hydration mismatch: incorrect number of rendered nodes. Server rendered more nodes than the client.`, owner);
-      }
-    }
-    // nextSibling is mostly harmless, and since we don't have
-    // a good reference to what element to act upon, we instead
-    // rely on the vm's associated renderer for navigating to the
-    // next node in the list to be hydrated.
-    const {
-      nextSibling
-    } = renderer;
-    do {
-      const current = nextNode;
-      nextNode = nextSibling(nextNode);
-      removeNode(current, parentNode, renderer);
-    } while (nextNode);
-  }
-}
-function handleMismatch(node, vnode, renderer) {
-  hasMismatch = true;
-  const {
-    getProperty
-  } = renderer;
-  const parentNode = getProperty(node, 'parentNode');
-  mount(vnode, parentNode, renderer, node);
-  removeNode(node, parentNode, renderer);
-  return vnode.elm;
-}
-function patchElementPropsAndAttrs(vnode, renderer) {
-  applyEventListeners(vnode, renderer);
-  patchProps(null, vnode, renderer);
-}
-function hasCorrectNodeType(vnode, node, nodeType, renderer) {
-  const {
-    getProperty
-  } = renderer;
-  if (getProperty(node, 'nodeType') !== nodeType) {
-    {
-      logError('Hydration mismatch: incorrect node type received', vnode.owner);
-    }
-    return false;
-  }
-  return true;
-}
-function isMatchingElement(vnode, elm, renderer) {
-  const {
-    getProperty
-  } = renderer;
-  if (vnode.sel.toLowerCase() !== getProperty(elm, 'tagName').toLowerCase()) {
-    {
-      logError(`Hydration mismatch: expecting element with tag "${vnode.sel.toLowerCase()}" but found "${getProperty(elm, 'tagName').toLowerCase()}".`, vnode.owner);
-    }
-    return false;
-  }
-  const hasIncompatibleAttrs = validateAttrs(vnode, elm, renderer);
-  const hasIncompatibleClass = validateClassAttr(vnode, elm, renderer);
-  const hasIncompatibleStyle = validateStyleAttr(vnode, elm, renderer);
-  return hasIncompatibleAttrs && hasIncompatibleClass && hasIncompatibleStyle;
-}
-function validateAttrs(vnode, elm, renderer) {
-  const {
-    data: {
-      attrs = {}
-    }
-  } = vnode;
-  let nodesAreCompatible = true;
-  // Validate attributes, though we could always recovery from those by running the update mods.
-  // Note: intentionally ONLY matching vnodes.attrs to elm.attrs, in case SSR is adding extra attributes.
-  for (const [attrName, attrValue] of Object.entries(attrs)) {
-    const {
-      owner
-    } = vnode;
-    const {
-      getAttribute
-    } = renderer;
-    const elmAttrValue = getAttribute(elm, attrName);
-    if (String(attrValue) !== elmAttrValue) {
-      {
-        const {
-          getProperty
-        } = renderer;
-        logError(`Mismatch hydrating element <${getProperty(elm, 'tagName').toLowerCase()}>: attribute "${attrName}" has different values, expected "${attrValue}" but found "${elmAttrValue}"`, owner);
-      }
-      nodesAreCompatible = false;
-    }
-  }
-  return nodesAreCompatible;
-}
-function validateClassAttr(vnode, elm, renderer) {
-  const {
-    data,
-    owner
-  } = vnode;
-  let {
-    className,
-    classMap
-  } = data;
-  const {
-    getProperty,
-    getClassList
-  } = renderer;
-  const scopedToken = getScopeTokenClass(owner);
-  const stylesheetTokenHost = isVCustomElement(vnode) ? getStylesheetTokenHost(vnode) : null;
-  // Classnames for scoped CSS are added directly to the DOM during rendering,
-  // or to the VDOM on the server in the case of SSR. As such, these classnames
-  // are never present in VDOM nodes in the browser.
-  //
-  // Consequently, hydration mismatches will occur if scoped CSS token classnames
-  // are rendered during SSR. This needs to be accounted for when validating.
-  if (!isNull(scopedToken) || !isNull(stylesheetTokenHost)) {
-    if (!isUndefined$1(className)) {
-      // The order of the className should be scopedToken className stylesheetTokenHost
-      const classTokens = [scopedToken, className, stylesheetTokenHost];
-      const classNames = ArrayFilter.call(classTokens, token => !isNull(token));
-      className = ArrayJoin.call(classNames, ' ');
-    } else if (!isUndefined$1(classMap)) {
-      classMap = Object.assign(Object.assign(Object.assign({}, classMap), !isNull(scopedToken) ? {
-        [scopedToken]: true
-      } : {}), !isNull(stylesheetTokenHost) ? {
-        [stylesheetTokenHost]: true
-      } : {});
-    } else {
-      // The order of the className should be scopedToken stylesheetTokenHost
-      const classTokens = [scopedToken, stylesheetTokenHost];
-      const classNames = ArrayFilter.call(classTokens, token => !isNull(token));
-      if (classNames.length) {
-        className = ArrayJoin.call(classNames, ' ');
-      }
-    }
-  }
-  let nodesAreCompatible = true;
-  let readableVnodeClassname;
-  const elmClassName = getProperty(elm, 'className');
-  if (!isUndefined$1(className) && String(className) !== elmClassName) {
-    // className is used when class is bound to an expr.
-    nodesAreCompatible = false;
-    readableVnodeClassname = className;
-  } else if (!isUndefined$1(classMap)) {
-    // classMap is used when class is set to static value.
-    const classList = getClassList(elm);
-    let computedClassName = '';
-    // all classes from the vnode should be in the element.classList
-    for (const name in classMap) {
-      computedClassName += ' ' + name;
-      if (!classList.contains(name)) {
-        nodesAreCompatible = false;
-      }
-    }
-    readableVnodeClassname = computedClassName.trim();
-    if (classList.length > keys(classMap).length) {
-      nodesAreCompatible = false;
-    }
-  } else if (isUndefined$1(className) && elmClassName !== '') {
-    // SSR contains a className but client-side VDOM does not
-    nodesAreCompatible = false;
-    readableVnodeClassname = '';
-  }
-  if (!nodesAreCompatible) {
-    {
-      logError(`Mismatch hydrating element <${getProperty(elm, 'tagName').toLowerCase()}>: attribute "class" has different values, expected "${readableVnodeClassname}" but found "${elmClassName}"`, vnode.owner);
-    }
-  }
-  return nodesAreCompatible;
-}
-function validateStyleAttr(vnode, elm, renderer) {
-  const {
-    data: {
-      style,
-      styleDecls
-    }
-  } = vnode;
-  const {
-    getAttribute
-  } = renderer;
-  const elmStyle = getAttribute(elm, 'style') || '';
-  let vnodeStyle;
-  let nodesAreCompatible = true;
-  if (!isUndefined$1(style) && style !== elmStyle) {
-    nodesAreCompatible = false;
-    vnodeStyle = style;
-  } else if (!isUndefined$1(styleDecls)) {
-    const parsedVnodeStyle = parseStyleText(elmStyle);
-    const expectedStyle = [];
-    // styleMap is used when style is set to static value.
-    for (let i = 0, n = styleDecls.length; i < n; i++) {
-      const [prop, value, important] = styleDecls[i];
-      expectedStyle.push(`${prop}: ${value + (important ? ' important!' : '')}`);
-      const parsedPropValue = parsedVnodeStyle[prop];
-      if (isUndefined$1(parsedPropValue)) {
-        nodesAreCompatible = false;
-      } else if (!parsedPropValue.startsWith(value)) {
-        nodesAreCompatible = false;
-      } else if (important && !parsedPropValue.endsWith('!important')) {
-        nodesAreCompatible = false;
-      }
-    }
-    if (keys(parsedVnodeStyle).length > styleDecls.length) {
-      nodesAreCompatible = false;
-    }
-    vnodeStyle = ArrayJoin.call(expectedStyle, ';');
-  }
-  if (!nodesAreCompatible) {
-    {
-      const {
-        getProperty
-      } = renderer;
-      logError(`Mismatch hydrating element <${getProperty(elm, 'tagName').toLowerCase()}>: attribute "style" has different values, expected "${vnodeStyle}" but found "${elmStyle}".`, vnode.owner);
-    }
-  }
-  return nodesAreCompatible;
-}
-function areCompatibleNodes(client, ssr, vnode, renderer) {
-  const {
-    getProperty,
-    getAttribute
-  } = renderer;
-  if (getProperty(client, 'nodeType') === 3 /* EnvNodeTypes.TEXT */) {
-    if (!hasCorrectNodeType(vnode, ssr, 3 /* EnvNodeTypes.TEXT */, renderer)) {
-      return false;
-    }
-    return getProperty(client, NODE_VALUE_PROP) === getProperty(ssr, NODE_VALUE_PROP);
-  }
-  if (getProperty(client, 'nodeType') === 8 /* EnvNodeTypes.COMMENT */) {
-    if (!hasCorrectNodeType(vnode, ssr, 8 /* EnvNodeTypes.COMMENT */, renderer)) {
-      return false;
-    }
-    return getProperty(client, NODE_VALUE_PROP) === getProperty(ssr, NODE_VALUE_PROP);
-  }
-  if (!hasCorrectNodeType(vnode, ssr, 1 /* EnvNodeTypes.ELEMENT */, renderer)) {
-    return false;
-  }
-  let isCompatibleElements = true;
-  if (getProperty(client, 'tagName') !== getProperty(ssr, 'tagName')) {
-    {
-      logError(`Hydration mismatch: expecting element with tag "${getProperty(client, 'tagName').toLowerCase()}" but found "${getProperty(ssr, 'tagName').toLowerCase()}".`, vnode.owner);
-    }
-    return false;
-  }
-  const clientAttrsNames = getProperty(client, 'getAttributeNames').call(client);
-  clientAttrsNames.forEach(attrName => {
-    if (getAttribute(client, attrName) !== getAttribute(ssr, attrName)) {
-      logError(`Mismatch hydrating element <${getProperty(client, 'tagName').toLowerCase()}>: attribute "${attrName}" has different values, expected "${getAttribute(client, attrName)}" but found "${getAttribute(ssr, attrName)}"`, vnode.owner);
-      isCompatibleElements = false;
-    }
-  });
-  return isCompatibleElements;
-}
+/* version: 1.7.7 */
 
 /*
  * Copyright (c) 2018, salesforce.com, inc.
@@ -6658,1509 +5652,159 @@ function areCompatibleNodes(client, ssr, vnode, renderer) {
  * SPDX-License-Identifier: MIT
  * For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/MIT
  */
-// See @lwc/engine-core/src/framework/template.ts
-const TEMPLATE_PROPS = ['slots', 'stylesheetToken', 'stylesheets', 'renderMode'];
-// Via https://www.npmjs.com/package/object-observer
-const ARRAY_MUTATION_METHODS = ['pop', 'push', 'shift', 'unshift', 'reverse', 'sort', 'fill', 'splice', 'copyWithin'];
-// Expandos that may be placed on a stylesheet factory function, and which are meaningful to LWC at runtime
-const STYLESHEET_FUNCTION_EXPANDOS = [
-// SEE `KEY__SCOPED_CSS` in @lwc/style-compiler
-'$scoped$'];
-function getOriginalArrayMethod(prop) {
-  switch (prop) {
-    case 'pop':
-      return ArrayPop;
-    case 'push':
-      return ArrayPush$1;
-    case 'shift':
-      return ArrayShift;
-    case 'unshift':
-      return ArrayUnshift;
-    case 'reverse':
-      return ArrayReverse;
-    case 'sort':
-      return ArraySort;
-    case 'fill':
-      return ArrayFill;
-    case 'splice':
-      return ArraySplice;
-    case 'copyWithin':
-      return ArrayCopyWithin;
-  }
-}
-let mutationWarningsSilenced = false;
-// Warn if the user tries to mutate a stylesheets array, e.g.:
-// `tmpl.stylesheets.push(someStylesheetFunction)`
-function warnOnArrayMutation(stylesheets) {
-  // We can't handle users calling Array.prototype.slice.call(tmpl.stylesheets), but
-  // we can at least warn when they use the most common mutation methods.
-  for (const prop of ARRAY_MUTATION_METHODS) {
-    const originalArrayMethod = getOriginalArrayMethod(prop);
-    stylesheets[prop] = function arrayMutationWarningWrapper() {
-      logError(`Mutating the "stylesheets" array on a template function ` + `is deprecated and may be removed in a future version of LWC.`);
-      // @ts-ignore
-      return originalArrayMethod.apply(this, arguments);
-    };
-  }
-}
-// Warn if the user tries to mutate a stylesheet factory function, e.g.:
-// `stylesheet.$scoped$ = true`
-function warnOnStylesheetFunctionMutation(stylesheet) {
-  // We could warn on other properties, but in practice only certain expandos are meaningful to LWC at runtime
-  for (const prop of STYLESHEET_FUNCTION_EXPANDOS) {
-    let value = stylesheet[prop];
-    defineProperty(stylesheet, prop, {
-      enumerable: true,
-      configurable: true,
-      get() {
-        return value;
-      },
-      set(newValue) {
-        logError(`Dynamically setting the "${prop}" property on a stylesheet function ` + `is deprecated and may be removed in a future version of LWC.`);
-        value = newValue;
-      }
-    });
-  }
-}
-// Warn on either array or stylesheet (function) mutation, in a deeply-nested array
-function warnOnStylesheetsMutation(stylesheets) {
-  traverseStylesheets(stylesheets, subStylesheets => {
-    if (isArray$1(subStylesheets)) {
-      warnOnArrayMutation(subStylesheets);
-    } else {
-      warnOnStylesheetFunctionMutation(subStylesheets);
-    }
-  });
-}
-// Deeply freeze the entire array (of arrays) of stylesheet factory functions
-function deepFreeze(stylesheets) {
-  traverseStylesheets(stylesheets, subStylesheets => {
-    freeze(subStylesheets);
-  });
-}
-// Deep-traverse an array (of arrays) of stylesheet factory functions, and call the callback for every array/function
-function traverseStylesheets(stylesheets, callback) {
-  callback(stylesheets);
-  for (let i = 0; i < stylesheets.length; i++) {
-    const stylesheet = stylesheets[i];
-    if (isArray$1(stylesheet)) {
-      traverseStylesheets(stylesheet, callback);
-    } else {
-      callback(stylesheet);
-    }
-  }
-}
-function freezeTemplate(tmpl) {
-  if (lwcRuntimeFlags.ENABLE_FROZEN_TEMPLATE) {
-    // Deep freeze the template
-    freeze(tmpl);
-    if (!isUndefined$1(tmpl.stylesheets)) {
-      deepFreeze(tmpl.stylesheets);
-    }
-  } else {
-    // TODO [#2782]: remove this flag and delete the legacy behavior
-    // When ENABLE_FROZEN_TEMPLATE is false, then we shim stylesheetTokens on top of stylesheetToken for anyone who
-    // is accessing the old internal API (backwards compat). Details: https://salesforce.quip.com/v1rmAFu2cKAr
-    defineProperty(tmpl, 'stylesheetTokens', {
-      enumerable: true,
-      configurable: true,
-      get() {
-        const {
-          stylesheetToken
-        } = this;
-        if (isUndefined$1(stylesheetToken)) {
-          return stylesheetToken;
-        }
-        // Shim for the old `stylesheetTokens` property
-        // See https://github.com/salesforce/lwc/pull/2332/files#diff-7901555acef29969adaa6583185b3e9bce475cdc6f23e799a54e0018cb18abaa
-        return {
-          hostAttribute: `${stylesheetToken}-host`,
-          shadowAttribute: stylesheetToken
-        };
-      },
-      set(value) {
-        // If the value is null or some other exotic object, you would be broken anyway in the past
-        // because the engine would try to access hostAttribute/shadowAttribute, which would throw an error.
-        // However it may be undefined in newer versions of LWC, so we need to guard against that case.
-        this.stylesheetToken = isUndefined$1(value) ? undefined : value.shadowAttribute;
-      }
-    });
-    // When ENABLE_FROZEN_TEMPLATE is false, warn in dev mode whenever someone is mutating the template
-    {
-      if (!isUndefined$1(tmpl.stylesheets)) {
-        warnOnStylesheetsMutation(tmpl.stylesheets);
-      }
-      for (const prop of TEMPLATE_PROPS) {
-        let value = tmpl[prop];
-        defineProperty(tmpl, prop, {
-          enumerable: true,
-          configurable: true,
-          get() {
-            return value;
-          },
-          set(newValue) {
-            if (!mutationWarningsSilenced) {
-              logError(`Dynamically setting the "${prop}" property on a template function ` + `is deprecated and may be removed in a future version of LWC.`);
-            }
-            value = newValue;
-          }
-        });
-      }
-      const originalDescriptor = getOwnPropertyDescriptor$1(tmpl, 'stylesheetTokens');
-      defineProperty(tmpl, 'stylesheetTokens', {
-        enumerable: true,
-        configurable: true,
-        get: originalDescriptor.get,
-        set(value) {
-          logError(`Dynamically setting the "stylesheetTokens" property on a template function ` + `is deprecated and may be removed in a future version of LWC.`);
-          // Avoid logging twice (for both stylesheetToken and stylesheetTokens)
-          mutationWarningsSilenced = true;
-          originalDescriptor.set.call(this, value);
-          mutationWarningsSilenced = false;
-        }
-      });
-    }
-  }
-}
-/* version: 2.32.1 */
-
-/*
- * Copyright (c) 2018, salesforce.com, inc.
- * All rights reserved.
- * SPDX-License-Identifier: MIT
- * For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/MIT
- */
-/**
- * Displays the header for a custom element.
- *
- * @param ce the custom element
- * @param componentInstance component instance associated with the custom element.
- */
-function getHeaderForCustomElement(ce, componentInstance) {
-  // [element]
-  // LWC component instance: [vm.component]
-  return ['div', {}, ['object', {
-    object: ce,
-    config: {
-      skip: true
-    }
-  }], ['div', {}, ['span', {
-    style: 'margin: 0 5px; color: red'
-  }, 'LWC:'], ['object', {
-    object: componentInstance
-  }]]];
-}
-function getHeaderForComponentInstance(componentInstance, debugInfo) {
-  if (keys(debugInfo).length === 0) {
-    // there is no debug information, no need to customize this component instance
-    return null;
-  }
-  // [component]
-  // Debug information: [vm.debugInfo]
-  return ['div', {}, ['object', {
-    object: componentInstance,
-    config: {
-      skip: true
-    }
-  }], ['div', {}, ['span', {
-    style: 'margin: 0 5px; color: red'
-  }, 'Debug:'], ['object', {
-    object: debugInfo
-  }]]];
-}
-const LightningElementFormatter = {
-  name: 'LightningElementFormatter',
-  header(obj, config) {
-    const vm = getAssociatedVMIfPresent(obj);
-    if (!isUndefined$1(vm) && (isUndefined$1(config) || !config.skip)) {
-      if (obj instanceof HTMLElement) {
-        return getHeaderForCustomElement(obj, vm.component);
-      } else {
-        return getHeaderForComponentInstance(obj, vm.debugInfo);
-      }
-    }
-    return null;
+const globalStylesheets = create(null);
+const globalStylesheetsParentElement = document.head || document.body || document;
+// TODO [#0]: Evaluate how we can extract the `$shadowToken$` property name in a shared package
+// to avoid having to synchronize it between the different modules.
+const useSyntheticShadow = hasOwnProperty.call(Element.prototype, '$shadowToken$');
+const renderer = {
+  ssr: false,
+  syntheticShadow: useSyntheticShadow,
+  createElement(tagName, namespace) {
+    return isUndefined(namespace) ? document.createElement(tagName) : document.createElementNS(namespace, tagName);
   },
-  hasBody() {
-    return false;
-  }
-};
-
-/*
- * Copyright (c) 2018, salesforce.com, inc.
- * All rights reserved.
- * SPDX-License-Identifier: MIT
- * For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/MIT
- */
-function init() {
-  const devtoolsFormatters = _globalThis.devtoolsFormatters || [];
-  ArrayPush$1.call(devtoolsFormatters, LightningElementFormatter);
-  _globalThis.devtoolsFormatters = devtoolsFormatters;
-}
-{
-  init();
-}
-
-/*
- * Copyright (c) 2018, salesforce.com, inc.
- * All rights reserved.
- * SPDX-License-Identifier: MIT
- * For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/MIT
- */
-//
-// Feature detection
-//
-// This check for constructable style sheets is similar to Fast's:
-// https://github.com/microsoft/fast/blob/d49d1ec/packages/web-components/fast-element/src/dom.ts#L51-L53
-// See also: https://github.com/whatwg/webidl/issues/1027#issuecomment-934510070
-const supportsConstructableStylesheets = isFunction$1(CSSStyleSheet.prototype.replaceSync) && isArray$1(document.adoptedStyleSheets);
-// The original adoptedStylesheet proposal used a frozen array. A follow-up proposal made the array mutable.
-// Chromium 99+ and Firefox 101+ support mutable arrays. We check if the array is mutable, to ensure backward compat.
-// (If the length is writable, then the array is mutable.) See: https://chromestatus.com/feature/5638996492288000
-// TODO [#2828]: Re-evaluate this in the future once we drop support for older browser versions.
-const supportsMutableAdoptedStyleSheets = supportsConstructableStylesheets && getOwnPropertyDescriptor$1(document.adoptedStyleSheets, 'length').writable;
-// Detect IE, via https://stackoverflow.com/a/9851769
-const isIE11 = !isUndefined$1(document.documentMode);
-const stylesheetCache = new Map();
-//
-// Test utilities
-//
-{
-  // @ts-ignore
-  window.__lwcResetGlobalStylesheets = () => {
-    stylesheetCache.clear();
-  };
-}
-function createFreshStyleElement(content) {
-  const elm = document.createElement('style');
-  elm.type = 'text/css';
-  elm.textContent = content;
-  return elm;
-}
-function createStyleElement(content, cacheData) {
-  const {
-    element,
-    usedElement
-  } = cacheData;
-  // If the <style> was already used, then we should clone it. We cannot insert
-  // the same <style> in two places in the DOM.
-  if (usedElement) {
-    // For a mysterious reason, IE11 doesn't like the way we clone <style> nodes
-    // and will render the incorrect styles if we do things that way. It's just
-    // a perf optimization, so we can skip it for IE11.
-    if (isIE11) {
-      return createFreshStyleElement(content);
-    }
-    // This `<style>` may be repeated multiple times in the DOM, so cache it. It's a bit
-    // faster to call `cloneNode()` on an existing node than to recreate it every time.
-    return element.cloneNode(true);
-  }
-  // We don't clone every time, because that would be a perf tax on the first time
-  cacheData.usedElement = true;
-  return element;
-}
-function createConstructableStylesheet(content) {
-  const stylesheet = new CSSStyleSheet();
-  stylesheet.replaceSync(content);
-  return stylesheet;
-}
-function insertConstructableStylesheet(content, target, cacheData) {
-  const {
-    adoptedStyleSheets
-  } = target;
-  const {
-    stylesheet
-  } = cacheData;
-  // Mutable adopted stylesheets are only supported in certain browsers.
-  // The reason we use it is for perf: https://github.com/salesforce/lwc/pull/2683
-  if (supportsMutableAdoptedStyleSheets) {
-    adoptedStyleSheets.push(stylesheet);
-  } else {
-    target.adoptedStyleSheets = [...adoptedStyleSheets, stylesheet];
-  }
-}
-function insertStyleElement(content, target, cacheData) {
-  const elm = createStyleElement(content, cacheData);
-  target.appendChild(elm);
-}
-function getCacheData(content, useConstructableStylesheet) {
-  let cacheData = stylesheetCache.get(content);
-  if (isUndefined$1(cacheData)) {
-    cacheData = {
-      stylesheet: undefined,
-      element: undefined,
-      roots: undefined,
-      global: false,
-      usedElement: false
-    };
-    stylesheetCache.set(content, cacheData);
-  }
-  // Create <style> elements or CSSStyleSheets on-demand, as needed
-  if (useConstructableStylesheet && isUndefined$1(cacheData.stylesheet)) {
-    cacheData.stylesheet = createConstructableStylesheet(content);
-  } else if (!useConstructableStylesheet && isUndefined$1(cacheData.element)) {
-    cacheData.element = createFreshStyleElement(content);
-  }
-  return cacheData;
-}
-function insertGlobalStylesheet(content) {
-  // Force a <style> element for global stylesheets. See comment below.
-  const cacheData = getCacheData(content, false);
-  if (cacheData.global) {
-    // already inserted
-    return;
-  }
-  cacheData.global = true; // mark inserted
-  // TODO [#2922]: use document.adoptedStyleSheets in supported browsers. Currently we can't, due to backwards compat.
-  insertStyleElement(content, document.head, cacheData);
-}
-function insertLocalStylesheet(content, target) {
-  const cacheData = getCacheData(content, supportsConstructableStylesheets);
-  let {
-    roots
-  } = cacheData;
-  if (isUndefined$1(roots)) {
-    roots = cacheData.roots = new WeakSet(); // lazily initialize (not needed for global styles)
-  } else if (roots.has(target)) {
-    // already inserted
-    return;
-  }
-  roots.add(target); // mark inserted
-  // Constructable stylesheets are only supported in certain browsers:
-  // https://caniuse.com/mdn-api_document_adoptedstylesheets
-  // The reason we use it is for perf: https://github.com/salesforce/lwc/pull/2460
-  if (supportsConstructableStylesheets) {
-    insertConstructableStylesheet(content, target, cacheData);
-  } else {
-    // Fall back to <style> element
-    insertStyleElement(content, target, cacheData);
-  }
-}
-function insertStylesheet(content, target) {
-  if (isUndefined$1(target)) {
-    // global
-    insertGlobalStylesheet(content);
-  } else {
-    // local
-    insertLocalStylesheet(content, target);
-  }
-}
-
-/*
- * Copyright (c) 2020, salesforce.com, inc.
- * All rights reserved.
- * SPDX-License-Identifier: MIT
- * For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/MIT
- */
-function isCustomElementRegistryAvailable() {
-  if (typeof customElements === 'undefined') {
-    return false;
-  }
-  try {
-    // dereference HTMLElement global because babel wraps globals in compat mode with a
-    // _wrapNativeSuper()
-    // This is a problem because LWCUpgradableElement extends renderer.HTMLElement which does not
-    // get wrapped by babel.
-    const HTMLElementAlias = HTMLElement;
-    // In case we use compat mode with a modern browser, the compat mode transformation
-    // invokes the DOM api with an .apply() or .call() to initialize any DOM api sub-classing,
-    // which are not equipped to be initialized that way.
-    class clazz extends HTMLElementAlias {
-      /*LWC compiler v2.32.1*/
-    }
-    customElements.define('lwc-test-' + Math.floor(Math.random() * 1000000), clazz);
-    new clazz();
-    return true;
-  } catch (_a) {
-    return false;
-  }
-}
-const hasCustomElements = isCustomElementRegistryAvailable();
-
-/*
- * Copyright (c) 2018, salesforce.com, inc.
- * All rights reserved.
- * SPDX-License-Identifier: MIT
- * For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/MIT
- */
-// Creates a custom element for compat (legacy) browser environments
-const createCustomElementCompat = (tagName, upgradeCallback) => {
-  const elm = document.createElement(tagName);
-  upgradeCallback(elm); // nothing to do with the result for now
-  return elm;
-};
-
-/*
- * Copyright (c) 2018, salesforce.com, inc.
- * All rights reserved.
- * SPDX-License-Identifier: MIT
- * For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/MIT
- */
-const cachedConstructors = new Map();
-const elementsUpgradedOutsideLWC = new WeakSet();
-let elementBeingUpgradedByLWC = false;
-// Creates a constructor that is intended to be used as a vanilla custom element, except that the upgradeCallback is
-// passed in to the constructor so LWC can reuse the same custom element constructor for multiple components.
-// Another benefit is that only LWC can create components that actually do anything – if you do
-// `customElements.define('x-foo')`, then you don't have access to the upgradeCallback, so it's a dummy custom element.
-// This class should be created once per tag name.
-const createUpgradableConstructor = (connectedCallback, disconnectedCallback) => {
-  const hasConnectedCallback = !isUndefined$1(connectedCallback);
-  const hasDisconnectedCallback = !isUndefined$1(disconnectedCallback);
-  // TODO [#2972]: this class should expose observedAttributes as necessary
-  class UpgradableConstructor extends HTMLElement {
-    constructor(upgradeCallback) {
-      super();
-      // If the element is not created using lwc.createElement(), e.g. `document.createElement('x-foo')`,
-      // then elementBeingUpgraded will be false
-      if (elementBeingUpgradedByLWC) {
-        upgradeCallback(this);
-      } else if (hasConnectedCallback || hasDisconnectedCallback) {
-        // If this element has connected or disconnected callbacks, then we need to keep track of
-        // instances that were created outside LWC (i.e. not created by `lwc.createElement()`).
-        // If the element has no connected or disconnected callbacks, then we don't need to track this.
-        elementsUpgradedOutsideLWC.add(this);
-        // TODO [#2970]: LWC elements cannot be upgraded via new Ctor()
-        // Do we want to support this? Throw an error? Currently for backwards compat it's a no-op.
+  createText(content) {
+    return document.createTextNode(content);
+  },
+  insert(node, parent, anchor) {
+    parent.insertBefore(node, anchor);
+  },
+  remove(node, parent) {
+    parent.removeChild(node);
+  },
+  nextSibling(node) {
+    return node.nextSibling;
+  },
+  attachShadow(element, options) {
+    return element.attachShadow(options);
+  },
+  setText(node, content) {
+    node.nodeValue = content;
+  },
+  getProperty(node, key) {
+    return node[key];
+  },
+  setProperty(node, key, value) {
+    {
+      if (node instanceof Element && !(key in node)) {
+        // TODO [#1297]: Move this validation to the compiler
+        assert.fail(`Unknown public property "${key}" of element <${node.tagName}>. This is likely a typo on the corresponding attribute "${getAttrNameFromPropName(key)}".`);
       }
     }
-    /*LWC compiler v2.32.1*/
-  }
-  // Do not unnecessarily add a connectedCallback/disconnectedCallback, as it introduces perf overhead
-  // See: https://github.com/salesforce/lwc/pull/3162#issuecomment-1311851174
-  if (hasConnectedCallback) {
-    UpgradableConstructor.prototype.connectedCallback = function () {
-      if (!elementsUpgradedOutsideLWC.has(this)) {
-        connectedCallback(this);
-      }
-    };
-  }
-  if (hasDisconnectedCallback) {
-    UpgradableConstructor.prototype.disconnectedCallback = function () {
-      if (!elementsUpgradedOutsideLWC.has(this)) {
-        disconnectedCallback(this);
-      }
-    };
-  }
-  return UpgradableConstructor;
-};
-const createCustomElementVanilla = (tagName, upgradeCallback, connectedCallback, disconnectedCallback) => {
-  // use global custom elements registry
-  let UpgradableConstructor = cachedConstructors.get(tagName);
-  if (isUndefined$1(UpgradableConstructor)) {
-    if (!isUndefined$1(customElements.get(tagName))) {
-      throw new Error(`Unexpected tag name "${tagName}". This name is a registered custom element, preventing LWC to upgrade the element.`);
-    }
-    UpgradableConstructor = createUpgradableConstructor(connectedCallback, disconnectedCallback);
-    customElements.define(tagName, UpgradableConstructor);
-    cachedConstructors.set(tagName, UpgradableConstructor);
-  }
-  elementBeingUpgradedByLWC = true;
-  try {
-    return new UpgradableConstructor(upgradeCallback);
-  } finally {
-    elementBeingUpgradedByLWC = false;
-  }
-};
-
-/*
- * Copyright (c) 2020, salesforce.com, inc.
- * All rights reserved.
- * SPDX-License-Identifier: MIT
- * For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/MIT
- */
-/**
- * Create a scoped registry, i.e. a function that can create custom elements whose tag names
- * do not conflict with vanilla custom elements having the same tag name.
- */
-function createScopedRegistry() {
-  if (!hasCustomElements) {
-    // This code should never be reached, because we don't use the pivot registry if
-    // custom elements are unavailable.
-    throw new Error('Custom elements are not supported in this environment.');
-  }
-  const {
-    HTMLElement: NativeHTMLElement
-  } = window;
-  const {
-    hasAttribute: nativeHasAttribute,
-    setAttribute: nativeSetAttribute,
-    removeAttribute: nativeRemoveAttribute,
-    getAttribute: nativeGetAttribute
-  } = NativeHTMLElement.prototype;
-  const definitionForElement = new WeakMap();
-  const pendingRegistryForElement = new WeakMap();
-  const definitionForConstructor = new WeakMap();
-  const registeredUserCtors = new WeakSet();
-  const registeredPivotCtors = new WeakSet();
-  const pivotCtorByTag = new Map();
-  const globalDefinitionsByTag = new Map();
-  const globalDefinitionsByClass = new Map();
-  const awaitingUpgrade = new Map();
-  const pendingWhenDefinedCallbacks = new Map();
-  const EMPTY_SET = new Set();
-  function createDefinitionRecord(constructor) {
-    var _a;
-    const {
-      connectedCallback,
-      disconnectedCallback,
-      formAssociatedCallback,
-      formDisabledCallback,
-      formResetCallback,
-      formStateRestoreCallback,
-      adoptedCallback,
-      attributeChangedCallback
-    } = constructor.prototype;
-    const formAssociated = Boolean(constructor.formAssociated);
-    const observedAttributes = new Set((_a = constructor.observedAttributes) !== null && _a !== void 0 ? _a : []);
-    return {
-      UserCtor: constructor,
-      PivotCtor: undefined,
-      connectedCallback,
-      disconnectedCallback,
-      formAssociatedCallback,
-      formDisabledCallback,
-      formResetCallback,
-      formStateRestoreCallback,
-      adoptedCallback,
-      attributeChangedCallback,
-      observedAttributes,
-      formAssociated
-    };
-  }
-  // Helper to create stand-in element for each tagName registered that delegates out to the registry for the given
-  // element. Note that the `registeredDefinition` represents the constructor that was used to register during
-  // `customElements.define()`. Whereas the `pivotDefinition` represents the constructor that is passed when the pivot
-  // constructor is invoked with another constructor.
-  function createPivotingClass(tagName, registeredDefinition) {
-    class PivotCtor extends NativeHTMLElement {
-      constructor(UserCtor) {
-        // This constructor can only be invoked by:
-        // a) the browser instantiating  an element from parsing or via document.createElement.
-        // b) LWC new PivotClass (This constructor is NOT observable/accessible in user-land).
-        // b) new UserClass.
-        // When LWC instantiates it, it will pass the upgrading definition as an argument
-        // If the caller signals via UserCtor that this is in fact a controlled
-        // definition, we use that one, otherwise fallback to the global
-        // internal registry.
-        super();
-        const userCtorIsDefined = !isUndefined$1(UserCtor);
-        if (userCtorIsDefined) {
-          if (!isConstructor(UserCtor)) {
-            throw new TypeError(`Failed to create custom element: the provided constructor is not a constructor.`);
-          }
-          if (!registeredUserCtors.has(UserCtor)) {
-            throw new Error(`Failed to create custom element: the provided constructor is unregistered: ${UserCtor.name}.`);
-          }
-        }
-        const definition = userCtorIsDefined ? getOrCreateDefinitionForConstructor(UserCtor) : globalDefinitionsByTag.get(tagName);
-        if (!isUndefined$1(definition)) {
-          internalUpgrade(this, registeredDefinition, definition);
-        } else {
-          // This is the case in which there is no global definition, and
-          // it is not handled by LWC (otherwise it will have a valid UserCtor)
-          // so we need to add it to the pending queue just in case it eventually
-          // gets defined in the global registry.
-          pendingRegistryForElement.set(this, registeredDefinition);
-        }
-      }
-      connectedCallback() {
-        var _a;
-        const definition = definitionForElement.get(this);
-        if (!isUndefined$1(definition)) {
-          // Delegate out to user callback
-          (_a = definition.connectedCallback) === null || _a === void 0 ? void 0 : _a.call(this);
-        } else {
-          // Register for upgrade when defined (only when connected, so we don't leak)
-          let awaiting = awaitingUpgrade.get(tagName);
-          if (isUndefined$1(awaiting)) {
-            awaitingUpgrade.set(tagName, awaiting = new Set());
-          }
-          awaiting.add(this);
-        }
-      }
-      disconnectedCallback() {
-        var _a;
-        const definition = definitionForElement.get(this);
-        if (!isUndefined$1(definition)) {
-          // Delegate out to user callback
-          (_a = definition.disconnectedCallback) === null || _a === void 0 ? void 0 : _a.call(this);
-        } else {
-          // Un-register for upgrade when defined (so we don't leak)
-          const awaiting = awaitingUpgrade.get(tagName);
-          // At this point, awaiting should never be undefined, because connectedCallback
-          // must have been called before disconnectedCallback. But just to be safe, we check
-          if (!isUndefined$1(awaiting)) {
-            awaiting.delete(this);
-          }
-        }
-      }
-      formAssociatedCallback(form) {
-        var _a;
-        const definition = definitionForElement.get(this);
-        (_a = definition === null || definition === void 0 ? void 0 : definition.formAssociatedCallback) === null || _a === void 0 ? void 0 : _a.call(this, form);
-      }
-      formDisabledCallback(disabled) {
-        var _a;
-        const definition = definitionForElement.get(this);
-        (_a = definition === null || definition === void 0 ? void 0 : definition.formDisabledCallback) === null || _a === void 0 ? void 0 : _a.call(this, disabled);
-      }
-      formResetCallback() {
-        var _a;
-        const definition = definitionForElement.get(this);
-        (_a = definition === null || definition === void 0 ? void 0 : definition.formResetCallback) === null || _a === void 0 ? void 0 : _a.call(this);
-      }
-      formStateRestoreCallback(state, mode) {
-        var _a;
-        const definition = definitionForElement.get(this);
-        (_a = definition === null || definition === void 0 ? void 0 : definition.formStateRestoreCallback) === null || _a === void 0 ? void 0 : _a.call(this, state, mode);
-      }
-      adoptedCallback() {
-        var _a;
-        const definition = definitionForElement.get(this);
-        (_a = definition === null || definition === void 0 ? void 0 : definition.adoptedCallback) === null || _a === void 0 ? void 0 : _a.call(this);
-      }
-      attributeChangedCallback(name, oldValue, newValue) {
-        var _a;
-        const definition = definitionForElement.get(this);
-        // if both definitions are the same, then the observedAttributes is the same,
-        // but if they are different, only if the runtime definition has the attribute
-        // marked as observed, then it should invoke attributeChangedCallback.
-        if (registeredDefinition === definition || (definition === null || definition === void 0 ? void 0 : definition.observedAttributes.has(name))) {
-          (_a = definition.attributeChangedCallback) === null || _a === void 0 ? void 0 : _a.apply(this, [name, oldValue, newValue]);
-        }
-      }
-      /*LWC compiler v2.32.1*/
-    }
-    PivotCtor.observedAttributes = [...registeredDefinition.observedAttributes];
-    // TODO [#3000]: support case where registeredDefinition is not form-associated, but later definition is.
-    PivotCtor.formAssociated = registeredDefinition.formAssociated;
-    registeredPivotCtors.add(PivotCtor);
-    return PivotCtor;
-  }
-  function getNewObservedAttributes(registeredDefinition, pivotDefinition) {
-    const {
-      observedAttributes,
-      attributeChangedCallback
-    } = pivotDefinition;
-    if (observedAttributes.size === 0 || isUndefined$1(attributeChangedCallback)) {
-      // This instance does not need to observe any attributes, no need to patch
-      return EMPTY_SET;
-    }
-    // Natively, the attributes observed by the registered definition are going to be taken
-    // care of by the browser, only the difference between the two sets has to be taken
-    // care by the patched version.
-    return new Set([...pivotDefinition.observedAttributes].filter(x => !registeredDefinition.observedAttributes.has(x)));
-  }
-  function throwAsyncError(error) {
-    // Per native custom element behavior, errors thrown in attributeChangedCallback
-    // become unhandled async errors. We use setTimeout() instead of Promise.resolve()
-    // to make it an unhandled error rather than an unhandled rejection.
-    setTimeout(() => {
-      throw error;
-    });
-  }
-  // Helper to patch `setAttribute`/`getAttribute` to implement `attributeChangedCallback`.
-  // Why is this necessary? Well basically, you can't change the `observedAttributes` after
-  // a custom element is defined. So with pivots, if two classes share the same tag name,
-  // and the second class observes attributes that aren't observed by the first one,
-  // then those attributes can never be observed by the native `observedAttributes` system.
-  // So we have to simulate it by patching `getAttribute`/`removeAttribute`. Note that
-  // we only do this when absolutely necessary, though; i.e. because we've determined
-  // that we aren't observing the attributes we need to.
-  function patchAttributes(instance, registeredDefinition, pivotDefinition) {
-    const newObservedAttributes = getNewObservedAttributes(registeredDefinition, pivotDefinition);
-    if (newObservedAttributes.size === 0) {
-      return;
-    }
-    const {
-      attributeChangedCallback
-    } = pivotDefinition;
-    // Patch the instance.
-    // Note we use the native `getAttribute` rather than the super's `getAttribute` because
-    // we don't actually want it to be observable that we're calling `getAttribute` from
-    // `setAttribute` and `removeAttribute`.
-    // TODO [#2994]: this should handle reflected properties such as `ariaLabel` and `role`.
-    defineProperties(instance, {
-      setAttribute: {
-        value: function setAttribute(name, value) {
-          if (newObservedAttributes.has(name)) {
-            const old = nativeGetAttribute.call(this, name);
-            nativeSetAttribute.call(this, name, value);
-            try {
-              attributeChangedCallback.call(this, name, old, value + '');
-            } catch (error) {
-              throwAsyncError(error);
-            }
-          } else {
-            nativeSetAttribute.call(this, name, value);
-          }
-        },
-        writable: true,
-        enumerable: true,
-        configurable: true
-      },
-      removeAttribute: {
-        value: function removeAttribute(name) {
-          if (newObservedAttributes.has(name)) {
-            const old = nativeGetAttribute.call(this, name);
-            nativeRemoveAttribute.call(this, name);
-            try {
-              attributeChangedCallback.call(this, name, old, null);
-            } catch (error) {
-              throwAsyncError(error);
-            }
-          } else {
-            nativeRemoveAttribute.call(this, name);
-          }
-        },
-        writable: true,
-        enumerable: true,
-        configurable: true
-      }
-    });
-  }
-  function patchAttributesDuringUpgrade(instance, registeredDefinition, pivotDefinition) {
-    // The below case patches observed attributes for the case where the HTML element is upgraded
-    // from a pre-existing one in the DOM.
-    const newObservedAttributes = getNewObservedAttributes(registeredDefinition, pivotDefinition);
-    if (getNewObservedAttributes(registeredDefinition, pivotDefinition).size === 0) {
-      return;
-    }
-    const {
-      attributeChangedCallback
-    } = pivotDefinition;
-    // Approximate observedAttributes from the user class, but only for the new observed attributes
-    newObservedAttributes.forEach(name => {
-      if (nativeHasAttribute.call(instance, name)) {
-        const newValue = nativeGetAttribute.call(instance, name);
-        attributeChangedCallback.call(instance, name, null, newValue);
-      }
-    });
-  }
-  // User extends this HTMLElement, which returns the CE being upgraded
-  let upgradingInstance;
-  // Helper to upgrade an instance with a CE definition using "constructor call trick"
-  function internalUpgrade(instance, registeredDefinition, pivotDefinition) {
-    setPrototypeOf(instance, pivotDefinition.UserCtor.prototype);
-    definitionForElement.set(instance, pivotDefinition);
-    // attributes patches when needed
-    if (pivotDefinition !== registeredDefinition) {
-      patchAttributes(instance, registeredDefinition, pivotDefinition);
-    }
-    // Tricking the construction path to believe that a new instance is being created,
-    // that way it will execute the super initialization mechanism but the HTMLElement
-    // constructor will reuse the instance by returning the upgradingInstance.
-    // This is by far the most important piece of the puzzle
-    upgradingInstance = instance;
-    // By `new`ing the UserCtor, we now jump to the constructor for the overridden global HTMLElement
-    // The reason this happens is that the UserCtor extends HTMLElement, so it calls the `super()`.
-    // Note that `upgradingInstance` is explicitly handled in the HTMLElement constructor.
-    new pivotDefinition.UserCtor();
-    patchAttributesDuringUpgrade(instance, registeredDefinition, pivotDefinition);
-  }
-  function isConstructor(constructor) {
-    return isFunction$1(constructor) && isObject(constructor.prototype);
-  }
-  function getOrCreateDefinitionForConstructor(constructor) {
-    if (!isConstructor(constructor)) {
-      throw new TypeError('The referenced constructor is not a constructor.');
-    }
-    const definition = definitionForConstructor.get(constructor);
-    if (!isUndefined$1(definition)) {
-      return definition;
-    }
-    return createDefinitionRecord(constructor);
-  }
-  // Defer a `whenDefined()` callback until an externally-visible custom element is defined
-  function createPendingWhenDefinedCallback(tagName) {
-    return new Promise(resolve => {
-      let resolvers = pendingWhenDefinedCallbacks.get(tagName);
-      if (isUndefined$1(resolvers)) {
-        resolvers = [];
-        pendingWhenDefinedCallbacks.set(tagName, resolvers);
-      }
-      resolvers.push(resolve);
-    });
-  }
-  // Call any pending `whenDefined()` callbacks
-  function flushPendingWhenDefinedCallbacks(tagName, ctor) {
-    const resolvers = pendingWhenDefinedCallbacks.get(tagName);
-    if (!isUndefined$1(resolvers)) {
-      for (const resolver of resolvers) {
-        resolver(ctor);
-      }
-    }
-    pendingWhenDefinedCallbacks.delete(tagName);
-  }
-  const {
-    customElements: nativeRegistry
-  } = window;
-  const {
-    define: nativeDefine,
-    whenDefined: nativeWhenDefined,
-    get: nativeGet
-  } = nativeRegistry;
-  // patch for the global registry define mechanism
-  CustomElementRegistry.prototype.define = function define(tagName, constructor, options) {
-    if (options && options.extends) {
-      // TODO [#2983]: should we support `extends`?
-      throw new DOMException('NotSupportedError: "extends" key in customElements.define() options is not supported.');
-    }
-    if (globalDefinitionsByTag.has(tagName)) {
-      throw new DOMException(`Failed to execute 'define' on 'CustomElementRegistry': the name "${tagName}" has already been used with this registry`);
-    }
-    if (!isUndefined$1(globalDefinitionsByClass.get(constructor))) {
-      throw new DOMException(`Failed to execute 'define' on 'CustomElementRegistry': this constructor has already been used with this registry`);
-    }
-    const definition = getOrCreateDefinitionForConstructor(constructor);
-    registeredUserCtors.add(constructor);
-    let PivotCtor = pivotCtorByTag.get(tagName);
-    if (isUndefined$1(PivotCtor)) {
-      PivotCtor = createPivotingClass(tagName, definition);
-      // Register a pivoting class which will handle global registry initializations
-      nativeDefine.call(nativeRegistry, tagName, PivotCtor);
-    }
-    // Only cache after nativeDefine has been called, because if it throws an error
-    // (e.g. for an invalid tag name), then we don't want to cache anything.
-    definitionForConstructor.set(constructor, definition);
-    pivotCtorByTag.set(tagName, PivotCtor);
-    globalDefinitionsByTag.set(tagName, definition);
-    globalDefinitionsByClass.set(constructor, definition);
-    // For globally defined custom elements, the definition associated
-    // to the UserCtor has a back-pointer to PivotCtor in case the user
-    // new the UserCtor, so we know how to create the underlying element.
-    definition.PivotCtor = PivotCtor;
-    // Upgrade any elements created in this scope before customElements.define
-    // was called, which should be exhibited by the following steps:
-    // 1) LWC registers a tagName for an LWC component.
-    // 2) Element with same tagName is created with document.createElement()
-    //    and inserted into DOM.
-    // 3) customElements.define() is called with tagName and non-LWC constructor.
-    // This requires immediate upgrade when the new global tagName is defined.
-    const awaiting = awaitingUpgrade.get(tagName);
-    if (!isUndefined$1(awaiting)) {
-      awaitingUpgrade.delete(tagName);
-      for (const element of awaiting) {
-        const registeredDefinition = pendingRegistryForElement.get(element);
-        // At this point, registeredDefinition should never be undefined because awaitingUpgrade
-        // is only populated when we haven't run internalUpgrade yet, and we only populate
-        // pendingRegistryForElement when internalUpgrade hasn't run yet.
-        // But just to be safe, we check.
-        if (!isUndefined$1(registeredDefinition)) {
-          pendingRegistryForElement.delete(element);
-          internalUpgrade(element, registeredDefinition, definition);
-        }
-      }
-    }
-    // If anyone called customElements.whenDefined() and is still waiting for a promise resolution, resolve now
-    flushPendingWhenDefinedCallbacks(tagName, constructor);
-  };
-  CustomElementRegistry.prototype.get = function get(tagName) {
-    const NativeCtor = nativeGet.call(nativeRegistry, tagName);
-    if (!isUndefined$1(NativeCtor)) {
-      const definition = globalDefinitionsByTag.get(tagName);
-      if (!isUndefined$1(definition)) {
-        return definition.UserCtor; // defined by the patched custom elements registry
-      }
-
-      if (registeredPivotCtors.has(NativeCtor)) {
-        return undefined; // pivot constructors should not be observable, return undefined
-      }
-
-      return NativeCtor; // constructor that existed before patching
-    }
-  };
-
-  CustomElementRegistry.prototype.whenDefined = function whenDefined(tagName) {
-    return nativeWhenDefined.call(nativeRegistry, tagName).then(NativeCtor => {
-      const definition = globalDefinitionsByTag.get(tagName);
-      if (!isUndefined$1(definition)) {
-        return definition.UserCtor;
-      }
-      // In this case, the custom element must have been defined before the registry patches
-      // were applied. So return the non-pivot constructor
-      if (isUndefined$1(NativeCtor)) {
-        // Chromium bug: https://bugs.chromium.org/p/chromium/issues/detail?id=1335247
-        // We can patch the correct behavior using customElements.get()
-        NativeCtor = nativeGet.call(nativeRegistry, tagName);
-      }
-      if (registeredPivotCtors.has(NativeCtor)) {
-        // Pivot constructors should not be observable. Wait to resolve the promise
-        // if a constructor is ever defined in userland
-        return createPendingWhenDefinedCallback(tagName);
-      }
-      return NativeCtor;
-    });
-  };
-  // This constructor is invoked when we call `new pivotDefinition.UserCtor()`
-  // @ts-ignore
-  window.HTMLElement = function HTMLElement() {
-    // Upgrading case: the pivoting class constructor was run by the browser's
-    // native custom elements and we're in the process of running the
-    // "constructor-call trick" on the natively constructed instance, so just
-    // return that here.
-    // This code path is also called when LWC `new`s a PivotCtor.
-    const instance = upgradingInstance;
-    if (!isUndefined$1(instance)) {
-      upgradingInstance = undefined;
-      return instance;
-    }
-    // Construction case: we need to construct the pivoting instance and return it.
-    // This is possible when the user register it via global registry and instantiate
-    // it via `new Ctor()`.
-    const {
-      constructor
-    } = this;
-    const definition = globalDefinitionsByClass.get(constructor);
-    if (isUndefined$1(definition) || isUndefined$1(definition.PivotCtor)) {
-      // This code path is hit if someone `new`s a class that extends `HTMLElement` without
-      // doing `customElements.define()` first. This matches native browser behavior:
-      // https://stackoverflow.com/a/61883392
-      throw new TypeError('Illegal constructor');
-    }
-    // This constructor is ONLY invoked when it is the user instantiating
-    // an element via new Ctor while Ctor is a registered global constructor.
-    const {
-      PivotCtor,
-      UserCtor
-    } = definition;
-    return new PivotCtor(UserCtor);
-  };
-  HTMLElement.prototype = NativeHTMLElement.prototype;
-  /**
-   * Create a new PivotConstructor for the given tagName, which is capable of being constructed
-   * with a UserConstructor defining the behavior. Passing in the UserConstructor here
-   * is a hint that can be used when registering a custom element with the global custom elements
-   * registry for the first time, which provides certain optimizations. It also marks the UserConstructor
-   * as "safe" to be used when passed in to a PivotConstructor.
-   *
-   * @param tagName - element tag name
-   * @param UserCtor - userland custom element constructor
-   * @returns a new custom element constructor
-   */
-  return function createPivotConstructor(tagName, UserCtor) {
-    tagName = StringToLowerCase.call(tagName);
-    let PivotCtor = pivotCtorByTag.get(tagName);
-    if (isUndefined$1(PivotCtor)) {
-      const definition = getOrCreateDefinitionForConstructor(UserCtor);
-      PivotCtor = createPivotingClass(tagName, definition);
-      // Register a pivoting class as a global custom element
-      nativeDefine.call(nativeRegistry, tagName, PivotCtor);
-      definition.PivotCtor = PivotCtor;
-      // Only cache after nativeDefine has been called, because if it throws an error
-      // (e.g. for an invalid tag name), then we don't want to cache anything.
-      definitionForConstructor.set(UserCtor, definition);
-      pivotCtorByTag.set(tagName, PivotCtor);
-    }
-    // Register a UserConstructor as "safe" to be used within a PivotConstructor
-    registeredUserCtors.add(UserCtor);
-    return PivotCtor;
-  };
-}
-
-/*
- * Copyright (c) 2018, salesforce.com, inc.
- * All rights reserved.
- * SPDX-License-Identifier: MIT
- * For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/MIT
- */
-let createScopedConstructor;
-let CachedHTMLElement;
-// We only call `createScopedRegistry()` if the browser supports custom elements and
-// ENABLE_SCOPED_CUSTOM_ELEMENT_REGISTRY is enabled, because we don't want to patch eagerly if the flag is disabled
-// or we're in a legacy browser.
-if (lwcRuntimeFlags.ENABLE_SCOPED_CUSTOM_ELEMENT_REGISTRY) {
-  if (hasCustomElements) {
-    // If ENABLE_SCOPED_CUSTOM_ELEMENT_REGISTRY is true, then we eagerly initialize the scoped registry.
-    // It's assumed that ENABLE_SCOPED_CUSTOM_ELEMENT_REGISTRY is set *before* LWC loads, and never changes.
-    //
-    // Why not lazily patch in `createCustomElement`? Well, this could lead to subtle bugs, e.g.:
-    //
-    // 1. LWC loads
-    // 2. `const Ctor = class extends HTMLElement {}`
-    // 3. `lwc.createElement(...)` // here we lazily patch
-    // 4. `customElements.define('x-foo', Ctor)` // throws error because class is bound to stale HTMLElement
-    //
-    // To reduce the risk of this, it's safer to patch the registry eagerly.
-    createScopedConstructor = createScopedRegistry();
-    // It's important to cache window.HTMLElement here. Otherwise, someone else could overwrite window.HTMLElement (e.g.
-    // another copy of the engine, or another scoping implementation) and we would get "Illegal constructor" errors
-    // because the HTMLElement prototypes are mixed up.
-    //
-    // The reason this happens is that the scoping implementation overwrites window.HTMLElement and expects to work
-    // with that version of HTMLElement. So if you load two copies of the scoping implementation in the same environment,
-    // the second one may accidentally grab window.HTMLElement from the first (when doing `class extends HTMLElement`).
-    // Caching avoids this problem.
-    CachedHTMLElement = window.HTMLElement;
-  }
-}
-// Creates a constructor that is intended to be used as the UserConstructor in a scoped (pivots) registry.
-// In this case, the upgradeCallback only needs to be defined once because we create these on-demand,
-// multiple times per tag name.
-const createUserConstructor = (HTMLElementToExtend, upgradeCallback, connectedCallback, disconnectedCallback) => {
-  // TODO [#2972]: this class should expose observedAttributes as necessary
-  return class UserConstructor extends HTMLElementToExtend {
-    constructor() {
-      super();
-      upgradeCallback(this);
-    }
-    // Note that there is no need to do the "avoid defining connectedCallback/disconnectedCallback" optimization
-    // here, because in create-scoped-registry.ts, the registered class will always have these callbacks anyway.
-    // See: https://github.com/salesforce/lwc/pull/3162#issuecomment-1311851174
-    connectedCallback() {
-      if (!isUndefined$1(connectedCallback)) {
-        connectedCallback(this);
-      }
-    }
-    disconnectedCallback() {
-      if (!isUndefined$1(disconnectedCallback)) {
-        disconnectedCallback(this);
-      }
-    }
-    /*LWC compiler v2.32.1*/
-  };
-};
-function createCustomElementScoped(tagName, upgradeCallback, connectedCallback, disconnectedCallback) {
-  if (isUndefined$1(createScopedConstructor) || isUndefined$1(CachedHTMLElement)) {
-    // This error should be impossible to hit
-    throw new Error('The flag ENABLE_SCOPED_CUSTOM_ELEMENT_REGISTRY must be set to true to use this feature');
-  }
-  const UserConstructor = createUserConstructor(CachedHTMLElement, upgradeCallback, connectedCallback, disconnectedCallback);
-  const ScopedConstructor = createScopedConstructor(tagName, UserConstructor);
-  return new ScopedConstructor(UserConstructor);
-}
-
-/*
- * Copyright (c) 2018, salesforce.com, inc.
- * All rights reserved.
- * SPDX-License-Identifier: MIT
- * For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/MIT
- */
-/**
- * We have three modes for creating custom elements:
- *
- * 1. Compat (legacy) browser support (e.g. IE11). Totally custom, doesn't rely on native browser APIs.
- * 2. "Vanilla" custom elements registry. This system actually still allows us to have two LWC components with the
- *    same tag name, via a simple trick: every custom element constructor we define in the registry is basically
- *    the same. It's essentially a dummy `class extends HTMLElement` that accepts an `upgradeCallback` in its
- *    constructor, which allows us to have completely customized functionality for different components.
- * 3. "Scoped" (or "pivot") custom elements. This relies on a sophisticated system that emulates the "scoped custom
- *    elements registry" proposal, with support for avoiding conflicts in tag names both between LWC components and
- *    between LWC components and third-party elements. This uses a similar trick to #2, but is much more complex
- *    because it must patch the global `customElements` and `HTMLElement` objects.
- */
-let createCustomElement;
-if (hasCustomElements) {
-  if (lwcRuntimeFlags.ENABLE_SCOPED_CUSTOM_ELEMENT_REGISTRY) {
-    createCustomElement = createCustomElementScoped;
-  } else {
-    // use global custom elements registry (vanilla)
-    createCustomElement = createCustomElementVanilla;
-  }
-} else {
-  // no registry available here
-  createCustomElement = createCustomElementCompat;
-}
-
-/*
- * Copyright (c) 2018, salesforce.com, inc.
- * All rights reserved.
- * SPDX-License-Identifier: MIT
- * For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/MIT
- */
-/**
- * A factory function that produces a renderer.
- * Renderer encapsulates operations that are required to render an LWC component into the underlying
- * runtime environment. In the case of @lwc/enigne-dom, it is meant to be used in a DOM environment.
- * Example usage:
- * import { renderer, rendererFactory } from 'lwc';
- * const customRenderer = rendererFactory(renderer);
- *
- * @param baseRenderer Either null or the base renderer imported from 'lwc'.
- */
-function rendererFactory(baseRenderer) {
-  const renderer = function (exports) {
-    /**
-     * Copyright (C) 2018 salesforce.com, inc.
-     */
-    /*
-     * Copyright (c) 2018, salesforce.com, inc.
-     * All rights reserved.
-     * SPDX-License-Identifier: MIT
-     * For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/MIT
-     */
-    function invariant(value, msg) {
-      if (!value) {
-        throw new Error(`Invariant Violation: ${msg}`);
-      }
-    }
-    function isTrue$1(value, msg) {
-      if (!value) {
-        throw new Error(`Assert Violation: ${msg}`);
-      }
-    }
-    function isFalse$1(value, msg) {
-      if (value) {
-        throw new Error(`Assert Violation: ${msg}`);
-      }
-    }
-    function fail(msg) {
-      throw new Error(msg);
-    }
-    var assert = /*#__PURE__*/Object.freeze({
-      __proto__: null,
-      invariant: invariant,
-      isTrue: isTrue$1,
-      isFalse: isFalse$1,
-      fail: fail
-    });
-    function isUndefined(obj) {
-      return obj === undefined;
-    }
-    function isNull(obj) {
-      return obj === null;
-    }
-    /** version: 2.32.1 */
-
-    /*
-     * Copyright (c) 2018, salesforce.com, inc.
-     * All rights reserved.
-     * SPDX-License-Identifier: MIT
-     * For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/MIT
-     */
-    function cloneNode(node, deep) {
-      return node.cloneNode(deep);
-    }
-    function createElement(tagName, namespace) {
-      return isUndefined(namespace) ? document.createElement(tagName) : document.createElementNS(namespace, tagName);
-    }
-    function createText(content) {
-      return document.createTextNode(content);
-    }
-    function createComment(content) {
-      return document.createComment(content);
-    }
-    exports.createFragment = void 0;
-    // IE11 lacks support for this feature
-    const SUPPORTS_TEMPLATE = typeof HTMLTemplateElement === 'function';
-    if (SUPPORTS_TEMPLATE) {
-      // Parse the fragment HTML string into DOM
-      exports.createFragment = function (html) {
-        const template = document.createElement('template');
-        template.innerHTML = html;
-        return template.content.firstChild;
-      };
+    node[key] = value;
+  },
+  getAttribute(element, name, namespace) {
+    return isUndefined(namespace) ? element.getAttribute(name) : element.getAttributeNS(namespace, name);
+  },
+  setAttribute(element, name, value, namespace) {
+    return isUndefined(namespace) ? element.setAttribute(name, value) : element.setAttributeNS(namespace, name, value);
+  },
+  removeAttribute(element, name, namespace) {
+    if (isUndefined(namespace)) {
+      element.removeAttribute(name);
     } else {
-      // In browsers that don't support <template> (e.g. IE11), we need to be careful to wrap elements like
-      // <td> in the proper container elements (e.g. <tbody>), because otherwise they will be parsed as null.
-      // Via https://github.com/webcomponents/polyfills/blob/ee1db33/packages/template/template.js#L273-L280
-      // With other elements added from:
-      // https://github.com/sindresorhus/html-tags/blob/95dcdd5/index.js
-      // Using the test:
-      // document.createRange().createContextualFragment(`<${tag}></${tag}>`).firstChild === null
-      // And omitting <html>, <head>, and <body> as these are not practical in an LWC component.
-      const topLevelWrappingMap = {
-        caption: ['table'],
-        col: ['colgroup', 'table'],
-        colgroup: ['table'],
-        option: ['select'],
-        tbody: ['table'],
-        td: ['tr', 'tbody', 'table'],
-        th: ['tr', 'tbody', 'table'],
-        thead: ['table'],
-        tfoot: ['table'],
-        tr: ['tbody', 'table']
-      };
-      // Via https://github.com/webcomponents/polyfills/blob/ee1db33/packages/template/template.js#L282-L288
-      const getTagName = function (text) {
-        return (/<([a-z][^/\0>\x20\t\r\n\f]+)/i.exec(text) || ['', ''])[1].toLowerCase();
-      };
-      // Via https://github.com/webcomponents/polyfills/blob/ee1db33/packages/template/template.js#L295-L320
-      exports.createFragment = function (html) {
-        const wrapperTags = topLevelWrappingMap[getTagName(html)];
-        if (!isUndefined(wrapperTags)) {
-          for (const wrapperTag of wrapperTags) {
-            html = `<${wrapperTag}>${html}</${wrapperTag}>`;
-          }
-        }
-        // For IE11, the document title must not be undefined, but it can be an empty string
-        // https://developer.mozilla.org/en-US/docs/Web/API/DOMImplementation/createHTMLDocument#browser_compatibility
-        const doc = document.implementation.createHTMLDocument('');
-        doc.body.innerHTML = html;
-        let content = doc.body;
-        if (!isUndefined(wrapperTags)) {
-          for (let i = 0; i < wrapperTags.length; i++) {
-            content = content.firstChild;
-          }
-        }
-        return content.firstChild;
-      };
+      element.removeAttributeNS(namespace, name);
     }
-    function insert(node, parent, anchor) {
-      parent.insertBefore(node, anchor);
+  },
+  addEventListener(target, type, callback, options) {
+    target.addEventListener(type, callback, options);
+  },
+  removeEventListener(target, type, callback, options) {
+    target.removeEventListener(type, callback, options);
+  },
+  dispatchEvent(target, event) {
+    return target.dispatchEvent(event);
+  },
+  getClassList(element) {
+    return element.classList;
+  },
+  getStyleDeclaration(element) {
+    // TODO [#0]: How to avoid this type casting? Shall we use a different type interface to
+    // represent elements in the engine?
+    return element.style;
+  },
+  getBoundingClientRect(element) {
+    return element.getBoundingClientRect();
+  },
+  querySelector(element, selectors) {
+    return element.querySelector(selectors);
+  },
+  querySelectorAll(element, selectors) {
+    return element.querySelectorAll(selectors);
+  },
+  getElementsByTagName(element, tagNameOrWildCard) {
+    return element.getElementsByTagName(tagNameOrWildCard);
+  },
+  getElementsByClassName(element, names) {
+    return element.getElementsByClassName(names);
+  },
+  isConnected(node) {
+    return node.isConnected;
+  },
+  insertGlobalStylesheet(content) {
+    if (!isUndefined(globalStylesheets[content])) {
+      return;
     }
-    function remove(node, parent) {
-      parent.removeChild(node);
-    }
-    function nextSibling(node) {
-      return node.nextSibling;
-    }
-    function attachShadow(element, options) {
-      // `shadowRoot` will be non-null in two cases:
-      //   1. upon initial load with an SSR-generated DOM, while in Shadow render mode
-      //   2. when a webapp author places <c-app> in their static HTML and mounts their
-      //      root component with customElement.define('c-app', Ctor)
-      if (!isNull(element.shadowRoot)) {
-        return element.shadowRoot;
-      }
-      return element.attachShadow(options);
-    }
-    function setText(node, content) {
-      node.nodeValue = content;
-    }
-    function getProperty(node, key) {
-      return node[key];
-    }
-    function setProperty(node, key, value) {
-      node[key] = value;
-    }
-    function getAttribute(element, name, namespace) {
-      return isUndefined(namespace) ? element.getAttribute(name) : element.getAttributeNS(namespace, name);
-    }
-    function setAttribute(element, name, value, namespace) {
-      return isUndefined(namespace) ? element.setAttribute(name, value) : element.setAttributeNS(namespace, name, value);
-    }
-    function removeAttribute(element, name, namespace) {
-      if (isUndefined(namespace)) {
-        element.removeAttribute(name);
-      } else {
-        element.removeAttributeNS(namespace, name);
-      }
-    }
-    function addEventListener(target, type, callback, options) {
-      target.addEventListener(type, callback, options);
-    }
-    function removeEventListener(target, type, callback, options) {
-      target.removeEventListener(type, callback, options);
-    }
-    function dispatchEvent(target, event) {
-      return target.dispatchEvent(event);
-    }
-    function getClassList(element) {
-      return element.classList;
-    }
-    function setCSSStyleProperty(element, name, value, important) {
-      // TODO [#0]: How to avoid this type casting? Shall we use a different type interface to
-      // represent elements in the engine?
-      element.style.setProperty(name, value, important ? 'important' : '');
-    }
-    function getBoundingClientRect(element) {
-      return element.getBoundingClientRect();
-    }
-    function querySelector(element, selectors) {
-      return element.querySelector(selectors);
-    }
-    function querySelectorAll(element, selectors) {
-      return element.querySelectorAll(selectors);
-    }
-    function getElementsByTagName(element, tagNameOrWildCard) {
-      return element.getElementsByTagName(tagNameOrWildCard);
-    }
-    function getElementsByClassName(element, names) {
-      return element.getElementsByClassName(names);
-    }
-    function getChildren(element) {
-      return element.children;
-    }
-    function getChildNodes(element) {
-      return element.childNodes;
-    }
-    function getFirstChild(element) {
-      return element.firstChild;
-    }
-    function getFirstElementChild(element) {
-      return element.firstElementChild;
-    }
-    function getLastChild(element) {
-      return element.lastChild;
-    }
-    function getLastElementChild(element) {
-      return element.lastElementChild;
-    }
-    function isConnected(node) {
-      return node.isConnected;
-    }
-    function assertInstanceOfHTMLElement(elm, msg) {
-      assert.invariant(elm instanceof HTMLElement, msg);
-    }
-    exports.addEventListener = addEventListener;
-    exports.assertInstanceOfHTMLElement = assertInstanceOfHTMLElement;
-    exports.attachShadow = attachShadow;
-    exports.cloneNode = cloneNode;
-    exports.createComment = createComment;
-    exports.createElement = createElement;
-    exports.createText = createText;
-    exports.dispatchEvent = dispatchEvent;
-    exports.getAttribute = getAttribute;
-    exports.getBoundingClientRect = getBoundingClientRect;
-    exports.getChildNodes = getChildNodes;
-    exports.getChildren = getChildren;
-    exports.getClassList = getClassList;
-    exports.getElementsByClassName = getElementsByClassName;
-    exports.getElementsByTagName = getElementsByTagName;
-    exports.getFirstChild = getFirstChild;
-    exports.getFirstElementChild = getFirstElementChild;
-    exports.getLastChild = getLastChild;
-    exports.getLastElementChild = getLastElementChild;
-    exports.getProperty = getProperty;
-    exports.insert = insert;
-    exports.isConnected = isConnected;
-    exports.nextSibling = nextSibling;
-    exports.querySelector = querySelector;
-    exports.querySelectorAll = querySelectorAll;
-    exports.remove = remove;
-    exports.removeAttribute = removeAttribute;
-    exports.removeEventListener = removeEventListener;
-    exports.setAttribute = setAttribute;
-    exports.setCSSStyleProperty = setCSSStyleProperty;
-    exports.setProperty = setProperty;
-    exports.setText = setText;
-    return exports;
-  }({});
-  // Meant to inherit any properties passed via the base renderer as the argument to the factory.
-  Object.setPrototypeOf(renderer, baseRenderer);
-  return renderer;
-}
-
-/*
- * Copyright (c) 2018, salesforce.com, inc.
- * All rights reserved.
- * SPDX-License-Identifier: MIT
- * For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/MIT
- */
-/**
- * The base renderer that will be used by engine-core.
- * This will be used for DOM operations when lwc is running in a browser environment.
- */
-const renderer = assign(
-// The base renderer will invoke the factory with null and assign additional properties that are
-// shared across renderers
-rendererFactory(null),
-// Properties that are either not required to be sandboxed or rely on a globally shared information
-{
-  // insertStyleSheet implementation shares a global cache of stylesheet data
-  insertStylesheet,
-  // relies on a shared global cache
-  createCustomElement,
-  isNativeShadowDefined: _globalThis[KEY__IS_NATIVE_SHADOW_ROOT_DEFINED],
-  isSyntheticShadowDefined: hasOwnProperty$1.call(Element.prototype, KEY__SHADOW_TOKEN)
-});
-
-/*
- * Copyright (c) 2018, salesforce.com, inc.
- * All rights reserved.
- * SPDX-License-Identifier: MIT
- * For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/MIT
- */
-function resetShadowRootAndLightDom(element, Ctor) {
-  if (element.shadowRoot) {
-    const shadowRoot = element.shadowRoot;
-    while (!isNull(shadowRoot.firstChild)) {
-      shadowRoot.removeChild(shadowRoot.firstChild);
-    }
+    globalStylesheets[content] = true;
+    const elm = document.createElement('style');
+    elm.type = 'text/css';
+    elm.textContent = content;
+    globalStylesheetsParentElement.appendChild(elm);
+  },
+  assertInstanceOfHTMLElement(elm, msg) {
+    assert.invariant(elm instanceof HTMLElement, msg);
   }
-  if (Ctor.renderMode === 'light') {
-    while (!isNull(element.firstChild)) {
-      element.removeChild(element.firstChild);
-    }
-  }
-}
-function createVMWithProps(element, Ctor, props) {
-  const vm = createVM(element, Ctor, renderer, {
-    mode: 'open',
-    owner: null,
-    tagName: element.tagName.toLowerCase(),
-    hydrated: true
-  });
-  for (const [key, value] of Object.entries(props)) {
-    element[key] = value;
-  }
-  return vm;
-}
-function hydrateComponent(element, Ctor, props = {}) {
-  if (!(element instanceof Element)) {
-    throw new TypeError(`"hydrateComponent" expects a valid DOM element as the first parameter but instead received ${element}.`);
-  }
-  if (!isFunction$1(Ctor)) {
-    throw new TypeError(`"hydrateComponent" expects a valid component constructor as the second parameter but instead received ${Ctor}.`);
-  }
-  if (!isObject(props) || isNull(props)) {
-    throw new TypeError(`"hydrateComponent" expects an object as the third parameter but instead received ${props}.`);
-  }
-  if (getAssociatedVMIfPresent(element)) {
-    /* eslint-disable-next-line no-console */
-    console.warn(`"hydrateComponent" expects an element that is not hydrated.`, element);
-    return;
-  }
-  try {
-    const vm = createVMWithProps(element, Ctor, props);
-    hydrateRoot(vm);
-  } catch (e) {
-    // Fallback: In case there's an error while hydrating, let's log the error, and replace the element content
-    //           with the client generated DOM.
-    /* eslint-disable-next-line no-console */
-    console.error('Recovering from error while hydrating: ', e);
-    // We want to preserve the element, so we need to reset the shadowRoot and light dom.
-    resetShadowRootAndLightDom(element, Ctor);
-    // we need to recreate the vm with the hydration flag on, so it re-uses the existing shadowRoot.
-    createVMWithProps(element, Ctor, props);
-    connectRootElement(element);
-  }
-}
-// Note: WeakSet is not supported in IE11, and the polyfill is not performant enough.
-//       This WeakSet usage is valid because this functionality is not meant to run in IE11.
-const hydratedCustomElements = new WeakSet();
+};
 function buildCustomElementConstructor(Ctor) {
   var _a;
-  const HtmlPrototype = getComponentHtmlPrototype(Ctor);
-  const {
-    observedAttributes
-  } = HtmlPrototype;
-  const {
-    attributeChangedCallback
-  } = HtmlPrototype.prototype;
-  return _a = class extends HTMLElement {
+  const def = getComponentInternalDef(Ctor);
+  // generating the hash table for attributes to avoid duplicate fields and facilitate validation
+  // and false positives in case of inheritance.
+  const attributeToPropMap = create(null);
+  for (const propName in def.props) {
+    attributeToPropMap[getAttrNameFromPropName(propName)] = propName;
+  }
+  return _a = class extends def.bridge {
     constructor() {
       super();
-      if (this.isConnected) {
-        // this if block is hit when there's already an un-upgraded element in the DOM with the same tag name.
-        hydrateComponent(this, Ctor, {});
-        hydratedCustomElements.add(this);
-      } else {
-        createVM(this, Ctor, renderer, {
-          mode: 'open',
-          owner: null,
-          tagName: this.tagName
-        });
-      }
+      createVM(this, def, {
+        mode: 'open',
+        owner: null,
+        tagName: this.tagName,
+        renderer
+      });
     }
     connectedCallback() {
-      if (hydratedCustomElements.has(this)) {
-        // This is an un-upgraded element that was hydrated in the constructor.
-        hydratedCustomElements.delete(this);
-      } else {
-        connectRootElement(this);
-      }
+      connectRootElement(this);
     }
     disconnectedCallback() {
       disconnectRootElement(this);
     }
-    attributeChangedCallback(name, oldValue, newValue) {
-      attributeChangedCallback.call(this, name, oldValue, newValue);
+    attributeChangedCallback(attrName, oldValue, newValue) {
+      if (oldValue === newValue) {
+        // Ignore same values.
+        return;
+      }
+      const propName = attributeToPropMap[attrName];
+      if (isUndefined(propName)) {
+        // Ignore unknown attributes.
+        return;
+      }
+      if (!isAttributeLocked(this, attrName)) {
+        // Ignore changes triggered by the engine itself during:
+        // * diffing when public props are attempting to reflect to the DOM
+        // * component via `this.setAttribute()`, should never update the prop
+        // Both cases, the setAttribute call is always wrapped by the unlocking of the
+        // attribute to be changed
+        return;
+      }
+      // Reflect attribute change to the corresponding property when changed from outside.
+      this[propName] = newValue;
     }
-    /*LWC compiler v2.32.1*/
-  }, _a.observedAttributes = observedAttributes, _a;
+  },
+  // Specify attributes for which we want to reflect changes back to their corresponding
+  // properties via attributeChangedCallback.
+  _a.observedAttributes = keys(attributeToPropMap), _a;
 }
 
 /*
@@ -8169,52 +5813,46 @@ function buildCustomElementConstructor(Ctor) {
  * SPDX-License-Identifier: MIT
  * For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/MIT
  */
-// TODO [#2472]: Remove this workaround when appropriate.
-// eslint-disable-next-line @lwc/lwc-internal/no-global-node
-const _Node$1 = Node;
-const ConnectingSlot = new WeakMap();
-const DisconnectingSlot = new WeakMap();
+const ConnectingSlot = createHiddenField('connecting', 'engine');
+const DisconnectingSlot = createHiddenField('disconnecting', 'engine');
 function callNodeSlot(node, slot) {
   {
     assert.isTrue(node, `callNodeSlot() should not be called for a non-object`);
   }
-  const fn = slot.get(node);
-  if (!isUndefined$1(fn)) {
+  const fn = getHiddenField(node, slot);
+  if (!isUndefined(fn)) {
     fn(node);
   }
   return node; // for convenience
 }
-
-if (!lwcRuntimeFlags.ENABLE_NATIVE_CUSTOM_ELEMENT_LIFECYCLE) {
-  // Monkey patching Node methods to be able to detect the insertions and removal of root elements
-  // created via createElement.
-  const {
-    appendChild,
-    insertBefore,
-    removeChild,
-    replaceChild
-  } = _Node$1.prototype;
-  assign(_Node$1.prototype, {
-    appendChild(newChild) {
-      const appendedNode = appendChild.call(this, newChild);
-      return callNodeSlot(appendedNode, ConnectingSlot);
-    },
-    insertBefore(newChild, referenceNode) {
-      const insertedNode = insertBefore.call(this, newChild, referenceNode);
-      return callNodeSlot(insertedNode, ConnectingSlot);
-    },
-    removeChild(oldChild) {
-      const removedNode = removeChild.call(this, oldChild);
-      return callNodeSlot(removedNode, DisconnectingSlot);
-    },
-    replaceChild(newChild, oldChild) {
-      const replacedNode = replaceChild.call(this, newChild, oldChild);
-      callNodeSlot(replacedNode, DisconnectingSlot);
-      callNodeSlot(newChild, ConnectingSlot);
-      return replacedNode;
-    }
-  });
-}
+// Monkey patching Node methods to be able to detect the insertions and removal of root elements
+// created via createElement.
+const {
+  appendChild,
+  insertBefore,
+  removeChild,
+  replaceChild
+} = Node.prototype;
+assign(Node.prototype, {
+  appendChild(newChild) {
+    const appendedNode = appendChild.call(this, newChild);
+    return callNodeSlot(appendedNode, ConnectingSlot);
+  },
+  insertBefore(newChild, referenceNode) {
+    const insertedNode = insertBefore.call(this, newChild, referenceNode);
+    return callNodeSlot(insertedNode, ConnectingSlot);
+  },
+  removeChild(oldChild) {
+    const removedNode = removeChild.call(this, oldChild);
+    return callNodeSlot(removedNode, DisconnectingSlot);
+  },
+  replaceChild(newChild, oldChild) {
+    const replacedNode = replaceChild.call(this, newChild, oldChild);
+    callNodeSlot(replacedNode, DisconnectingSlot);
+    callNodeSlot(newChild, ConnectingSlot);
+    return replacedNode;
+  }
+});
 
 /*
  * Copyright (c) 2018, salesforce.com, inc.
@@ -8224,11 +5862,11 @@ if (!lwcRuntimeFlags.ENABLE_NATIVE_CUSTOM_ELEMENT_LIFECYCLE) {
  */
 const ComponentConstructorToCustomElementConstructorMap = new Map();
 function getCustomElementConstructor(Ctor) {
-  if (Ctor === LightningElement) {
+  if (Ctor === BaseLightningElement) {
     throw new TypeError(`Invalid Constructor. LightningElement base class can't be claimed as a custom element.`);
   }
   let ce = ComponentConstructorToCustomElementConstructorMap.get(Ctor);
-  if (isUndefined$1(ce)) {
+  if (isUndefined(ce)) {
     ce = buildCustomElementConstructor(Ctor);
     ComponentConstructorToCustomElementConstructorMap.set(Ctor, ce);
   }
@@ -8243,64 +5881,68 @@ function getCustomElementConstructor(Ctor) {
  *      const elm = document.createElement('x-foo');
  *
  */
-defineProperty(LightningElement, 'CustomElementConstructor', {
+defineProperty(BaseLightningElement, 'CustomElementConstructor', {
   get() {
     return getCustomElementConstructor(this);
   }
 });
-freeze(LightningElement);
-seal(LightningElement.prototype);
-/* version: 2.32.1 */
+freeze(BaseLightningElement);
+seal(BaseLightningElement.prototype);
+/* version: 1.7.7 */
 
-const $fragment1 = parseFragment`<h1${3}>Hello world</h1>`;
 function tmpl($api, $cmp, $slotset, $ctx) {
-  const {st: api_static_fragment} = $api;
-  return [api_static_fragment($fragment1(), 1)];
-  /*LWC compiler v2.32.1*/
+  const {
+    t: api_text,
+    h: api_element
+  } = $api;
+  return [api_element("h1", {
+    key: 0
+  }, [api_text("Hello world")])];
 }
+
 var _tmpl = registerTemplate(tmpl);
 tmpl.stylesheets = [];
-freezeTemplate(tmpl);
+tmpl.stylesheetTokens = {
+  hostAttribute: "c-app_app-host",
+  shadowAttribute: "c-app_app"
+};
 
-var App = registerComponent(class extends LightningElement {
-  /*LWC compiler v2.32.1*/
-}, {
+var App = registerComponent(class extends BaseLightningElement {}, {
   tmpl: _tmpl
 });
 
-function stylesheet(token, useActualHostSelector, useNativeDirPseudoclass) {
-  var shadowSelector = token ? ("[" + token + "]") : "";
-  return "h1" + shadowSelector + " {color: rgb(81, 40, 230);background-color: aliceblue;padding: 5px;}";
-  /*LWC compiler v2.32.1*/
+function stylesheet(hostSelector, shadowSelector, nativeShadow) {
+  return ["h1", shadowSelector, " {color: rgb(81, 40, 230);background-color: aliceblue;padding: 5px;}\n"].join('');
 }
 var _implicitStylesheets = [stylesheet];
 
-const stc0 = {
-  key: 0
-};
 function tmpl$1($api, $cmp, $slotset, $ctx) {
-  const {d: api_dynamic_text, t: api_text, h: api_element} = $api;
-  return [api_element("h1", stc0, [api_text(api_dynamic_text($cmp.label) + " !!!")])];
-  /*LWC compiler v2.32.1*/
+  const {
+    d: api_dynamic,
+    t: api_text,
+    h: api_element
+  } = $api;
+  return [api_element("h1", {
+    key: 0
+  }, [api_dynamic($cmp.label), api_text(" !!!")])];
 }
+
 var _tmpl$1 = registerTemplate(tmpl$1);
 tmpl$1.stylesheets = [];
-
 
 if (_implicitStylesheets) {
   tmpl$1.stylesheets.push.apply(tmpl$1.stylesheets, _implicitStylesheets);
 }
-if (_implicitStylesheets || undefined) {
-  tmpl$1.stylesheetToken = "c-header_header";
-}
-freezeTemplate(tmpl$1);
+tmpl$1.stylesheetTokens = {
+  hostAttribute: "c-header_header-host",
+  shadowAttribute: "c-header_header"
+};
 
-class Header extends LightningElement {
+class Header extends BaseLightningElement {
   constructor(...args) {
     super(...args);
     this.label = '';
   }
-  /*LWC compiler v2.32.1*/
 }
 registerDecorators(Header, {
   publicProps: {
@@ -8316,80 +5958,71 @@ var Header$1 = registerComponent(Header, {
   tmpl: _tmpl$1
 });
 
-function stylesheet$1(token, useActualHostSelector, useNativeDirPseudoclass) {
-  var shadowSelector = token ? ("[" + token + "]") : "";
-  return ".user-card" + shadowSelector + " {font-family: 'Arial', sans-serif;background: #f4f4f4;width: 500px;display: grid;grid-template-columns: 1fr 2fr;grid-gap: 10px;margin-bottom: 15px;border-bottom: darkorchid 5px solid;}.user-card" + shadowSelector + " img" + shadowSelector + " {width: 100%;}.user-card" + shadowSelector + " button" + shadowSelector + " {cursor: pointer;background: darkorchid;color: #fff;border: 0;border-radius: 5px;padding: 5px 10px;}";
-  /*LWC compiler v2.32.1*/
+function stylesheet$1(hostSelector, shadowSelector, nativeShadow) {
+  return [".user-card", shadowSelector, " {font-family: 'Arial', sans-serif;background: #f4f4f4;width: 500px;display: grid;grid-template-columns: 1fr 2fr;grid-gap: 10px;margin-bottom: 15px;border-bottom: darkorchid 5px solid;}\n.user-card", shadowSelector, " img", shadowSelector, " {width: 100%;}\n.user-card", shadowSelector, " button", shadowSelector, " {cursor: pointer;background: darkorchid;color: #fff;border: 0;border-radius: 5px;padding: 5px 10px;}\n"].join('');
 }
 var _implicitStylesheets$1 = [stylesheet$1];
 
-const stc0$1 = {
-  classMap: {
-    "user-card": true
-  },
-  key: 0
-};
-const stc1 = {
-  key: 2
-};
-const stc2 = {
-  key: 3
-};
-const stc3 = {
-  classMap: {
-    "info": true
-  },
-  key: 4
-};
-const stc4 = {
-  key: 5
-};
-const stc5 = {
-  attrs: {
-    "name": "email"
-  },
-  key: 6
-};
-const stc6 = [];
-const stc7 = {
-  key: 7
-};
-const stc8 = {
-  attrs: {
-    "name": "phone"
-  },
-  key: 8
-};
 function tmpl$2($api, $cmp, $slotset, $ctx) {
-  const {h: api_element, d: api_dynamic_text, t: api_text, s: api_slot} = $api;
-  return [api_element("div", stc0$1, [api_element("img", {
+  const {
+    h: api_element,
+    d: api_dynamic,
+    s: api_slot
+  } = $api;
+  return [api_element("div", {
+    classMap: {
+      "user-card": true
+    },
+    key: 8
+  }, [api_element("img", {
     attrs: {
       "src": $cmp.avatar
     },
+    key: 0
+  }, []), api_element("div", {
+    key: 7
+  }, [api_element("h3", {
     key: 1
-  }), api_element("div", stc1, [api_element("h3", stc2, [api_text(api_dynamic_text($cmp.name))]), api_element("div", stc3, [api_element("p", stc4, [api_slot("email", stc5, stc6, $slotset)]), api_element("p", stc7, [api_slot("phone", stc8, stc6, $slotset)])])])])];
-  /*LWC compiler v2.32.1*/
+  }, [api_dynamic($cmp.name)]), api_element("div", {
+    classMap: {
+      "info": true
+    },
+    key: 6
+  }, [api_element("p", {
+    key: 3
+  }, [api_slot("email", {
+    attrs: {
+      "name": "email"
+    },
+    key: 2
+  }, [], $slotset)]), api_element("p", {
+    key: 5
+  }, [api_slot("phone", {
+    attrs: {
+      "name": "phone"
+    },
+    key: 4
+  }, [], $slotset)])])])])];
 }
+
 var _tmpl$2 = registerTemplate(tmpl$2);
 tmpl$2.slots = ["email", "phone"];
 tmpl$2.stylesheets = [];
 
-
 if (_implicitStylesheets$1) {
   tmpl$2.stylesheets.push.apply(tmpl$2.stylesheets, _implicitStylesheets$1);
 }
-if (_implicitStylesheets$1 || undefined) {
-  tmpl$2.stylesheetToken = "c-userCard_userCard";
-}
-freezeTemplate(tmpl$2);
+tmpl$2.stylesheetTokens = {
+  hostAttribute: "c-userCard_userCard-host",
+  shadowAttribute: "c-userCard_userCard"
+};
 
-class UserCard extends LightningElement {
+class UserCard extends BaseLightningElement {
   constructor(...args) {
     super(...args);
     this.name = "";
     this.avatar = "";
   }
-  /*LWC compiler v2.32.1*/
 }
 registerDecorators(UserCard, {
   publicProps: {
@@ -8408,87 +6041,448 @@ var UserCard$1 = registerComponent(UserCard, {
   tmpl: _tmpl$2
 });
 
-const $fragment1$1 = parseFragment`<div${3}>hello</div>`;
 function tmpl$3($api, $cmp, $slotset, $ctx) {
-  const {st: api_static_fragment} = $api;
-  return [api_static_fragment($fragment1$1(), 1)];
-  /*LWC compiler v2.32.1*/
+  const {
+    t: api_text,
+    h: api_element
+  } = $api;
+  return [api_element("div", {
+    key: 0
+  }, [api_text("hello")])];
 }
+
 var _tmpl$3 = registerTemplate(tmpl$3);
 tmpl$3.stylesheets = [];
-freezeTemplate(tmpl$3);
+tmpl$3.stylesheetTokens = {
+  hostAttribute: "c-at_icon_at_icon-host",
+  shadowAttribute: "c-at_icon_at_icon"
+};
 
-const $fragment1$2 = parseFragment`<svg width="16" height="16" viewBox="0 0 16 16" fill="#B7C7D3" xmlns="http://www.w3.org/2000/svg"${3}><path d="M8.66667 5.21867L8.66667 13.3333H7.33333L7.33333 5.21867L3.75733 8.79467L2.81467 7.852L8 2.66667L13.1853 7.852L12.2427 8.79467L8.66667 5.21867Z" fill="#7A9A02"${3}/></svg>`;
 function tmpl$4($api, $cmp, $slotset, $ctx) {
-  const {st: api_static_fragment} = $api;
-  return [api_static_fragment($fragment1$2(), 1)];
-  /*LWC compiler v2.32.1*/
+  const {
+    h: api_element
+  } = $api;
+  return [api_element("svg", {
+    attrs: {
+      "width": "16",
+      "height": "16",
+      "viewBox": "0 0 16 16",
+      "fill": "#B7C7D3",
+      "xmlns": "http://www.w3.org/2000/svg"
+    },
+    key: 1
+  }, [api_element("path", {
+    attrs: {
+      "d": "M8.66667 5.21867L8.66667 13.3333H7.33333L7.33333 5.21867L3.75733 8.79467L2.81467 7.852L8 2.66667L13.1853 7.852L12.2427 8.79467L8.66667 5.21867Z",
+      "fill": "#7A9A02"
+    },
+    key: 0
+  }, [])])];
 }
+
 var iconUpArrow = registerTemplate(tmpl$4);
 tmpl$4.stylesheets = [];
-freezeTemplate(tmpl$4);
+tmpl$4.stylesheetTokens = {
+  hostAttribute: "at_icon-templates_iconUpArrow-host",
+  shadowAttribute: "at_icon-templates_iconUpArrow"
+};
 
-const $fragment1$3 = parseFragment`<svg width="15" height="16" viewBox="0 0 15 16" fill="none" xmlns="http://www.w3.org/2000/svg"${3}><path d="M6.80168 10.4725L6.80168 3.25948L8.03832 3.25948L8.03832 10.4725L11.355 7.29385L12.2293 8.13177L7.42 12.741L2.6107 8.13177L3.48501 7.29385L6.80168 10.4725Z" fill="#C4342A"${3}/></svg>`;
 function tmpl$5($api, $cmp, $slotset, $ctx) {
-  const {st: api_static_fragment} = $api;
-  return [api_static_fragment($fragment1$3(), 1)];
-  /*LWC compiler v2.32.1*/
+  const {
+    h: api_element
+  } = $api;
+  return [api_element("svg", {
+    attrs: {
+      "width": "15",
+      "height": "16",
+      "viewBox": "0 0 15 16",
+      "fill": "none",
+      "xmlns": "http://www.w3.org/2000/svg"
+    },
+    key: 1
+  }, [api_element("path", {
+    attrs: {
+      "d": "M6.80168 10.4725L6.80168 3.25948L8.03832 3.25948L8.03832 10.4725L11.355 7.29385L12.2293 8.13177L7.42 12.741L2.6107 8.13177L3.48501 7.29385L6.80168 10.4725Z",
+      "fill": "#C4342A"
+    },
+    key: 0
+  }, [])])];
 }
+
 var iconDownArrow = registerTemplate(tmpl$5);
 tmpl$5.stylesheets = [];
-freezeTemplate(tmpl$5);
+tmpl$5.stylesheetTokens = {
+  hostAttribute: "at_icon-templates_iconDownArrow-host",
+  shadowAttribute: "at_icon-templates_iconDownArrow"
+};
 
-const $fragment1$4 = parseFragment`<svg width="12" height="11" viewBox="0 0 12 11" fill="none" xmlns="http://www.w3.org/2000/svg"${3}><path d="M8.78129 4.6671L5.20529 1.0911L6.14796 0.148438L11.3333 5.33377L6.14796 10.5191L5.20529 9.57644L8.78129 6.00044H0.666626V4.6671H8.78129Z" fill="#6CAAD3"${3}/></svg>`;
 function tmpl$6($api, $cmp, $slotset, $ctx) {
-  const {st: api_static_fragment} = $api;
-  return [api_static_fragment($fragment1$4(), 1)];
-  /*LWC compiler v2.32.1*/
+  const {
+    h: api_element
+  } = $api;
+  return [api_element("svg", {
+    attrs: {
+      "width": "12",
+      "height": "11",
+      "viewBox": "0 0 12 11",
+      "fill": "none",
+      "xmlns": "http://www.w3.org/2000/svg"
+    },
+    key: 1
+  }, [api_element("path", {
+    attrs: {
+      "d": "M8.78129 4.6671L5.20529 1.0911L6.14796 0.148438L11.3333 5.33377L6.14796 10.5191L5.20529 9.57644L8.78129 6.00044H0.666626V4.6671H8.78129Z",
+      "fill": "#6CAAD3"
+    },
+    key: 0
+  }, [])])];
 }
+
 var iconRightArrow = registerTemplate(tmpl$6);
 tmpl$6.stylesheets = [];
-freezeTemplate(tmpl$6);
+tmpl$6.stylesheetTokens = {
+  hostAttribute: "at_icon-templates_iconRightArrow-host",
+  shadowAttribute: "at_icon-templates_iconRightArrow"
+};
 
-const $fragment1$5 = parseFragment`<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"${3}><path d="M24.9828 32.6163H8.3792C7.82979 32.6163 7.38027 32.1645 7.38027 31.6124V11.721C7.38027 11.1688 7.82979 10.7171 8.3792 10.7171H8.80731V10H8.3792C7.43735 10 6.66675 10.7744 6.66675 11.721V31.6124C6.66675 32.5589 7.43735 33.3333 8.3792 33.3333H24.9828C25.8319 33.3333 26.5312 32.7095 26.6667 31.8992H25.939C25.8177 32.3151 25.4395 32.6163 24.99 32.6163H24.9828Z" fill="#A0B1BD"${3}/><path d="M10 7.66675C10 7.11446 10.4477 6.66675 11 6.66675H26L10 22.2223V7.66675Z" fill="#03467D"${3}/><path d="M26 6.66675H29C29.5523 6.66675 30 7.11446 30 7.66675V29.0001C30 29.5524 29.5523 30.0001 29 30.0001H11C10.4477 30.0001 10 29.5524 10 29.0001V22.2223L26 6.66675Z" fill="#09528E"${3}/><path d="M28.3333 30.3125H26.6667C25.2997 30.3119 23.9585 30.7317 22.7882 31.5265C21.6179 32.3212 20.663 33.4608 20.0267 34.8219C20.0088 34.5693 19.9999 34.3159 20 34.0625C20 28.8847 23.7308 24.6875 28.3333 24.6875V20L36.6667 27.5L28.3333 35V30.3125Z" fill="#5188AD"${3}/><line x1="14.6667" y1="12.8333" x2="25.3334" y2="12.8333" stroke="#A0B1BD" stroke-linecap="round"${3}/><line x1="14.6667" y1="18.6667" x2="25.3334" y2="18.6667" stroke="#A0B1BD" stroke-linecap="round"${3}/><line x1="14.6667" y1="24.5" x2="25.3334" y2="24.5" stroke="#A0B1BD" stroke-linecap="round"${3}/></svg>`;
 function tmpl$7($api, $cmp, $slotset, $ctx) {
-  const {st: api_static_fragment} = $api;
-  return [api_static_fragment($fragment1$5(), 1)];
-  /*LWC compiler v2.32.1*/
+  const {
+    h: api_element
+  } = $api;
+  return [api_element("svg", {
+    attrs: {
+      "width": "40",
+      "height": "40",
+      "viewBox": "0 0 40 40",
+      "fill": "none",
+      "xmlns": "http://www.w3.org/2000/svg"
+    },
+    key: 7
+  }, [api_element("path", {
+    attrs: {
+      "d": "M24.9828 32.6163H8.3792C7.82979 32.6163 7.38027 32.1645 7.38027 31.6124V11.721C7.38027 11.1688 7.82979 10.7171 8.3792 10.7171H8.80731V10H8.3792C7.43735 10 6.66675 10.7744 6.66675 11.721V31.6124C6.66675 32.5589 7.43735 33.3333 8.3792 33.3333H24.9828C25.8319 33.3333 26.5312 32.7095 26.6667 31.8992H25.939C25.8177 32.3151 25.4395 32.6163 24.99 32.6163H24.9828Z",
+      "fill": "#A0B1BD"
+    },
+    key: 0
+  }, []), api_element("path", {
+    attrs: {
+      "d": "M10 7.66675C10 7.11446 10.4477 6.66675 11 6.66675H26L10 22.2223V7.66675Z",
+      "fill": "#03467D"
+    },
+    key: 1
+  }, []), api_element("path", {
+    attrs: {
+      "d": "M26 6.66675H29C29.5523 6.66675 30 7.11446 30 7.66675V29.0001C30 29.5524 29.5523 30.0001 29 30.0001H11C10.4477 30.0001 10 29.5524 10 29.0001V22.2223L26 6.66675Z",
+      "fill": "#09528E"
+    },
+    key: 2
+  }, []), api_element("path", {
+    attrs: {
+      "d": "M28.3333 30.3125H26.6667C25.2997 30.3119 23.9585 30.7317 22.7882 31.5265C21.6179 32.3212 20.663 33.4608 20.0267 34.8219C20.0088 34.5693 19.9999 34.3159 20 34.0625C20 28.8847 23.7308 24.6875 28.3333 24.6875V20L36.6667 27.5L28.3333 35V30.3125Z",
+      "fill": "#5188AD"
+    },
+    key: 3
+  }, []), api_element("line", {
+    attrs: {
+      "x1": "14.6667",
+      "y1": "12.8333",
+      "x2": "25.3334",
+      "y2": "12.8333",
+      "stroke": "#A0B1BD",
+      "stroke-linecap": "round"
+    },
+    key: 4
+  }, []), api_element("line", {
+    attrs: {
+      "x1": "14.6667",
+      "y1": "18.6667",
+      "x2": "25.3334",
+      "y2": "18.6667",
+      "stroke": "#A0B1BD",
+      "stroke-linecap": "round"
+    },
+    key: 5
+  }, []), api_element("line", {
+    attrs: {
+      "x1": "14.6667",
+      "y1": "24.5",
+      "x2": "25.3334",
+      "y2": "24.5",
+      "stroke": "#A0B1BD",
+      "stroke-linecap": "round"
+    },
+    key: 6
+  }, [])])];
 }
+
 var iconActivityListIconMessage = registerTemplate(tmpl$7);
 tmpl$7.stylesheets = [];
-freezeTemplate(tmpl$7);
+tmpl$7.stylesheetTokens = {
+  hostAttribute: "at_icon-templates_iconActivityListIconMessage-host",
+  shadowAttribute: "at_icon-templates_iconActivityListIconMessage"
+};
 
-const $fragment1$6 = parseFragment`<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"${3}><path d="M24.9828 32.6163H8.3792C7.82979 32.6163 7.38027 32.1645 7.38027 31.6124V11.721C7.38027 11.1688 7.82979 10.7171 8.3792 10.7171H8.80731V10H8.3792C7.43735 10 6.66675 10.7744 6.66675 11.721V31.6124C6.66675 32.5589 7.43735 33.3333 8.3792 33.3333H24.9828C25.8319 33.3333 26.5312 32.7095 26.6667 31.8992H25.939C25.8177 32.3151 25.4395 32.6163 24.99 32.6163H24.9828Z" fill="#A0B1BD"${3}/><path d="M10 7.66675C10 7.11446 10.4477 6.66675 11 6.66675H26L10 22.2223V7.66675Z" fill="#03467D"${3}/><path d="M26 6.66675L30 10.5556V29.0001C30 29.5524 29.5523 30.0001 29 30.0001H11C10.4477 30.0001 10 29.5524 10 29.0001V22.2223L26 6.66675Z" fill="#09528E"${3}/><line x1="13.8333" y1="12.8333" x2="16.1666" y2="12.8333" stroke="#A0B1BD" stroke-linecap="round"${3}/><line x1="13.8333" y1="18.6667" x2="16.1666" y2="18.6667" stroke="#A0B1BD" stroke-linecap="round"${3}/><line x1="13.8333" y1="24.5" x2="16.1666" y2="24.5" stroke="#A0B1BD" stroke-linecap="round"${3}/><line x1="18.8333" y1="12.8333" x2="21.1666" y2="12.8333" stroke="#A0B1BD" stroke-linecap="round"${3}/><line x1="18.8333" y1="18.6667" x2="21.1666" y2="18.6667" stroke="#A0B1BD" stroke-linecap="round"${3}/><line x1="18.8333" y1="24.5" x2="21.1666" y2="24.5" stroke="#A0B1BD" stroke-linecap="round"${3}/><line x1="23.8333" y1="12.8333" x2="26.1666" y2="12.8333" stroke="#A0B1BD" stroke-linecap="round"${3}/><line x1="23.8333" y1="18.6667" x2="26.1666" y2="18.6667" stroke="#A0B1BD" stroke-linecap="round"${3}/><line x1="23.8333" y1="24.5" x2="26.1666" y2="24.5" stroke="#A0B1BD" stroke-linecap="round"${3}/><ellipse cx="28.3333" cy="26.6666" rx="8.33333" ry="8.33333" fill="#5188AD"${3}/><path d="M31.9057 27.0632H28.7311V23.095H27.1438V28.6505H31.9057V27.0632Z" fill="#003764"${3}/></svg>`;
 function tmpl$8($api, $cmp, $slotset, $ctx) {
-  const {st: api_static_fragment} = $api;
-  return [api_static_fragment($fragment1$6(), 1)];
-  /*LWC compiler v2.32.1*/
+  const {
+    h: api_element
+  } = $api;
+  return [api_element("svg", {
+    attrs: {
+      "width": "40",
+      "height": "40",
+      "viewBox": "0 0 40 40",
+      "fill": "none",
+      "xmlns": "http://www.w3.org/2000/svg"
+    },
+    key: 14
+  }, [api_element("path", {
+    attrs: {
+      "d": "M24.9828 32.6163H8.3792C7.82979 32.6163 7.38027 32.1645 7.38027 31.6124V11.721C7.38027 11.1688 7.82979 10.7171 8.3792 10.7171H8.80731V10H8.3792C7.43735 10 6.66675 10.7744 6.66675 11.721V31.6124C6.66675 32.5589 7.43735 33.3333 8.3792 33.3333H24.9828C25.8319 33.3333 26.5312 32.7095 26.6667 31.8992H25.939C25.8177 32.3151 25.4395 32.6163 24.99 32.6163H24.9828Z",
+      "fill": "#A0B1BD"
+    },
+    key: 0
+  }, []), api_element("path", {
+    attrs: {
+      "d": "M10 7.66675C10 7.11446 10.4477 6.66675 11 6.66675H26L10 22.2223V7.66675Z",
+      "fill": "#03467D"
+    },
+    key: 1
+  }, []), api_element("path", {
+    attrs: {
+      "d": "M26 6.66675L30 10.5556V29.0001C30 29.5524 29.5523 30.0001 29 30.0001H11C10.4477 30.0001 10 29.5524 10 29.0001V22.2223L26 6.66675Z",
+      "fill": "#09528E"
+    },
+    key: 2
+  }, []), api_element("line", {
+    attrs: {
+      "x1": "13.8333",
+      "y1": "12.8333",
+      "x2": "16.1666",
+      "y2": "12.8333",
+      "stroke": "#A0B1BD",
+      "stroke-linecap": "round"
+    },
+    key: 3
+  }, []), api_element("line", {
+    attrs: {
+      "x1": "13.8333",
+      "y1": "18.6667",
+      "x2": "16.1666",
+      "y2": "18.6667",
+      "stroke": "#A0B1BD",
+      "stroke-linecap": "round"
+    },
+    key: 4
+  }, []), api_element("line", {
+    attrs: {
+      "x1": "13.8333",
+      "y1": "24.5",
+      "x2": "16.1666",
+      "y2": "24.5",
+      "stroke": "#A0B1BD",
+      "stroke-linecap": "round"
+    },
+    key: 5
+  }, []), api_element("line", {
+    attrs: {
+      "x1": "18.8333",
+      "y1": "12.8333",
+      "x2": "21.1666",
+      "y2": "12.8333",
+      "stroke": "#A0B1BD",
+      "stroke-linecap": "round"
+    },
+    key: 6
+  }, []), api_element("line", {
+    attrs: {
+      "x1": "18.8333",
+      "y1": "18.6667",
+      "x2": "21.1666",
+      "y2": "18.6667",
+      "stroke": "#A0B1BD",
+      "stroke-linecap": "round"
+    },
+    key: 7
+  }, []), api_element("line", {
+    attrs: {
+      "x1": "18.8333",
+      "y1": "24.5",
+      "x2": "21.1666",
+      "y2": "24.5",
+      "stroke": "#A0B1BD",
+      "stroke-linecap": "round"
+    },
+    key: 8
+  }, []), api_element("line", {
+    attrs: {
+      "x1": "23.8333",
+      "y1": "12.8333",
+      "x2": "26.1666",
+      "y2": "12.8333",
+      "stroke": "#A0B1BD",
+      "stroke-linecap": "round"
+    },
+    key: 9
+  }, []), api_element("line", {
+    attrs: {
+      "x1": "23.8333",
+      "y1": "18.6667",
+      "x2": "26.1666",
+      "y2": "18.6667",
+      "stroke": "#A0B1BD",
+      "stroke-linecap": "round"
+    },
+    key: 10
+  }, []), api_element("line", {
+    attrs: {
+      "x1": "23.8333",
+      "y1": "24.5",
+      "x2": "26.1666",
+      "y2": "24.5",
+      "stroke": "#A0B1BD",
+      "stroke-linecap": "round"
+    },
+    key: 11
+  }, []), api_element("ellipse", {
+    attrs: {
+      "cx": "28.3333",
+      "cy": "26.6666",
+      "rx": "8.33333",
+      "ry": "8.33333",
+      "fill": "#5188AD"
+    },
+    key: 12
+  }, []), api_element("path", {
+    attrs: {
+      "d": "M31.9057 27.0632H28.7311V23.095H27.1438V28.6505H31.9057V27.0632Z",
+      "fill": "#003764"
+    },
+    key: 13
+  }, [])])];
 }
+
 var iconActivityListNote = registerTemplate(tmpl$8);
 tmpl$8.stylesheets = [];
-freezeTemplate(tmpl$8);
+tmpl$8.stylesheetTokens = {
+  hostAttribute: "at_icon-templates_iconActivityListNote-host",
+  shadowAttribute: "at_icon-templates_iconActivityListNote"
+};
 
-const $fragment1$7 = parseFragment`<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"${3}><path d="M24.9828 32.6163H8.3792C7.82979 32.6163 7.38027 32.1645 7.38027 31.6124V11.721C7.38027 11.1688 7.82979 10.7171 8.3792 10.7171H8.80731V10H8.3792C7.43735 10 6.66675 10.7744 6.66675 11.721V31.6124C6.66675 32.5589 7.43735 33.3333 8.3792 33.3333H24.9828C25.8319 33.3333 26.5312 32.7095 26.6667 31.8992H25.939C25.8177 32.3151 25.4395 32.6163 24.99 32.6163H24.9828Z" fill="#A0B1BD"${3}/><path d="M10 7.66675C10 7.11446 10.4477 6.66675 11 6.66675H26L10 22.2223V7.66675Z" fill="#03467D"${3}/><path d="M26 6.66675H29C29.5523 6.66675 30 7.11446 30 7.66675V29.0001C30 29.5524 29.5523 30.0001 29 30.0001H11C10.4477 30.0001 10 29.5524 10 29.0001V22.2223L26 6.66675Z" fill="#09528E"${3}/><line x1="19.6667" y1="12.8333" x2="25.3334" y2="12.8333" stroke="#A0B1BD" stroke-linecap="round"${3}/><line x1="14.6667" y1="18.6667" x2="25.3334" y2="18.6667" stroke="#A0B1BD" stroke-linecap="round"${3}/><line x1="14.6667" y1="24.5" x2="25.3334" y2="24.5" stroke="#A0B1BD" stroke-linecap="round"${3}/><path d="M16.076 11.2338C16.1196 11.2475 16.1608 11.263 16.1995 11.2802L16.1995 11.2802L16.1998 11.2804C16.2497 11.3017 16.296 11.3222 16.3386 11.3418L16.3386 11.3418L16.3394 11.3421C16.3827 11.3601 16.4225 11.3755 16.4588 11.3882C16.4963 11.4014 16.5314 11.4084 16.5635 11.4084C16.6103 11.4084 16.6519 11.3976 16.687 11.3749L16.687 11.3749L16.6873 11.3747C16.723 11.3509 16.7564 11.3151 16.7879 11.2688L16.076 11.2338ZM16.076 11.2338L15.9872 12.1347C16.0668 12.1583 16.1463 12.1841 16.2258 12.2123C16.3125 12.2412 16.3956 12.2755 16.4752 12.3153L16.076 11.2338ZM14.7704 13.4951C14.8159 13.5169 14.8648 13.5441 14.917 13.5765C14.9702 13.6084 15.0278 13.6412 15.0899 13.6749C15.1432 13.7023 15.2034 13.7258 15.2708 13.7454L15.365 12.7825C15.2424 12.7478 15.1206 12.7074 14.9997 12.6614C14.8704 12.6123 14.7537 12.5457 14.6497 12.4618C14.5448 12.3772 14.4596 12.2698 14.3938 12.14L14.3937 12.1397C14.3289 12.0084 14.2972 11.8453 14.2972 11.6515C14.2972 11.5068 14.3266 11.3658 14.385 11.2288C14.4436 11.0916 14.5286 10.9683 14.6398 10.8589L14.64 10.8587L14.64 10.8587C14.7533 10.7491 14.8918 10.6599 15.055 10.591C15.2134 10.5223 15.3933 10.482 15.5944 10.4696L15.6218 10.1932L15.6218 10.193C15.6278 10.1368 15.653 10.087 15.6958 10.0442C15.7403 9.99776 15.798 9.975 15.8665 9.975H16.1721H16.1998L16.197 10.0025L16.1457 10.5079C16.3313 10.5443 16.4927 10.6018 16.6295 10.6807C16.7703 10.7601 16.89 10.8462 16.9882 10.9389L17.0037 10.9536L16.9917 10.9712L16.788 11.2687L16.7017 12.449C16.7016 12.449 16.7016 12.449 16.7016 12.4489C16.7732 12.5004 16.8349 12.5612 16.8865 12.6311C16.9401 12.7015 16.9816 12.7827 17.0109 12.8744C17.0405 12.965 17.055 13.0677 17.055 13.1823C17.055 13.355 17.0259 13.518 16.9676 13.6711L16.9676 13.6712C16.9092 13.8227 16.8233 13.9569 16.7102 14.0737C16.597 14.1906 16.4585 14.2861 16.2951 14.3606L16.2949 14.3606C16.1365 14.431 15.9565 14.4748 15.7553 14.4924L15.7251 14.8067L15.7251 14.807C15.7191 14.8632 15.6939 14.9129 15.6511 14.9558C15.6066 15.0022 15.549 15.025 15.4804 15.025H15.1748H15.1472L15.1499 14.9976L15.2013 14.4685C15.002 14.4336 14.811 14.3753 14.6284 14.2936L14.6281 14.2935C14.4402 14.2068 14.2806 14.1026 14.1497 13.9808L14.1339 13.966L14.1462 13.9483L14.4035 13.5756L14.4037 13.5754C14.4275 13.5417 14.459 13.5142 14.4977 13.4929C14.5387 13.4695 14.5823 13.4576 14.6279 13.4576C14.6753 13.4576 14.7229 13.4704 14.7704 13.4951ZM14.7704 13.4951C14.7705 13.4951 14.7707 13.4952 14.7708 13.4952L14.7592 13.5174L14.7701 13.4949C14.7702 13.4949 14.7703 13.495 14.7704 13.4951ZM14.4241 13.5898C14.4456 13.5594 14.4742 13.5344 14.5099 13.5147L14.1667 13.9625L14.4241 13.5898ZM16.1255 13.0798L16.1257 13.0801C16.186 13.1354 16.2168 13.2097 16.2168 13.3056C16.2168 13.4377 16.1813 13.5402 16.1127 13.6159C16.0491 13.686 15.9549 13.7356 15.8276 13.7627L15.9069 12.9444C15.9976 12.9824 16.0702 13.0276 16.1255 13.0798ZM15.3507 11.2617L15.3507 11.2617L15.351 11.2615C15.3983 11.2408 15.4552 11.2243 15.522 11.2123L15.4482 11.9556C15.3557 11.9145 15.2804 11.8661 15.2217 11.8105C15.1611 11.7497 15.1301 11.6707 15.1301 11.571C15.1301 11.5275 15.1376 11.4868 15.1525 11.4488L15.1525 11.4488L15.1526 11.4485C15.1674 11.4092 15.1903 11.3738 15.2217 11.3423C15.2548 11.3109 15.2976 11.2839 15.3507 11.2617Z" fill="#A0B1BD" stroke="#A0B1BD" stroke-width="0.05"${3}/><path d="M26.3542 26.6666L26.3542 24.9999C26.3548 23.6329 25.935 22.2918 25.1403 21.1215C24.3455 19.9512 23.206 18.9963 21.8449 18.3599C22.0975 18.342 22.3508 18.3331 22.6042 18.3333C27.7821 18.3333 31.9792 22.0641 31.9792 26.6666L36.6667 26.6666L29.1667 34.9999L21.6667 26.6666L26.3542 26.6666Z" fill="#5188AD"${3}/></svg>`;
 function tmpl$9($api, $cmp, $slotset, $ctx) {
-  const {st: api_static_fragment} = $api;
-  return [api_static_fragment($fragment1$7(), 1)];
-  /*LWC compiler v2.32.1*/
+  const {
+    h: api_element
+  } = $api;
+  return [api_element("svg", {
+    attrs: {
+      "width": "40",
+      "height": "40",
+      "viewBox": "0 0 40 40",
+      "fill": "none",
+      "xmlns": "http://www.w3.org/2000/svg"
+    },
+    key: 8
+  }, [api_element("path", {
+    attrs: {
+      "d": "M24.9828 32.6163H8.3792C7.82979 32.6163 7.38027 32.1645 7.38027 31.6124V11.721C7.38027 11.1688 7.82979 10.7171 8.3792 10.7171H8.80731V10H8.3792C7.43735 10 6.66675 10.7744 6.66675 11.721V31.6124C6.66675 32.5589 7.43735 33.3333 8.3792 33.3333H24.9828C25.8319 33.3333 26.5312 32.7095 26.6667 31.8992H25.939C25.8177 32.3151 25.4395 32.6163 24.99 32.6163H24.9828Z",
+      "fill": "#A0B1BD"
+    },
+    key: 0
+  }, []), api_element("path", {
+    attrs: {
+      "d": "M10 7.66675C10 7.11446 10.4477 6.66675 11 6.66675H26L10 22.2223V7.66675Z",
+      "fill": "#03467D"
+    },
+    key: 1
+  }, []), api_element("path", {
+    attrs: {
+      "d": "M26 6.66675H29C29.5523 6.66675 30 7.11446 30 7.66675V29.0001C30 29.5524 29.5523 30.0001 29 30.0001H11C10.4477 30.0001 10 29.5524 10 29.0001V22.2223L26 6.66675Z",
+      "fill": "#09528E"
+    },
+    key: 2
+  }, []), api_element("line", {
+    attrs: {
+      "x1": "19.6667",
+      "y1": "12.8333",
+      "x2": "25.3334",
+      "y2": "12.8333",
+      "stroke": "#A0B1BD",
+      "stroke-linecap": "round"
+    },
+    key: 3
+  }, []), api_element("line", {
+    attrs: {
+      "x1": "14.6667",
+      "y1": "18.6667",
+      "x2": "25.3334",
+      "y2": "18.6667",
+      "stroke": "#A0B1BD",
+      "stroke-linecap": "round"
+    },
+    key: 4
+  }, []), api_element("line", {
+    attrs: {
+      "x1": "14.6667",
+      "y1": "24.5",
+      "x2": "25.3334",
+      "y2": "24.5",
+      "stroke": "#A0B1BD",
+      "stroke-linecap": "round"
+    },
+    key: 5
+  }, []), api_element("path", {
+    attrs: {
+      "d": "M16.076 11.2338C16.1196 11.2475 16.1608 11.263 16.1995 11.2802L16.1995 11.2802L16.1998 11.2804C16.2497 11.3017 16.296 11.3222 16.3386 11.3418L16.3386 11.3418L16.3394 11.3421C16.3827 11.3601 16.4225 11.3755 16.4588 11.3882C16.4963 11.4014 16.5314 11.4084 16.5635 11.4084C16.6103 11.4084 16.6519 11.3976 16.687 11.3749L16.687 11.3749L16.6873 11.3747C16.723 11.3509 16.7564 11.3151 16.7879 11.2688L16.076 11.2338ZM16.076 11.2338L15.9872 12.1347C16.0668 12.1583 16.1463 12.1841 16.2258 12.2123C16.3125 12.2412 16.3956 12.2755 16.4752 12.3153L16.076 11.2338ZM14.7704 13.4951C14.8159 13.5169 14.8648 13.5441 14.917 13.5765C14.9702 13.6084 15.0278 13.6412 15.0899 13.6749C15.1432 13.7023 15.2034 13.7258 15.2708 13.7454L15.365 12.7825C15.2424 12.7478 15.1206 12.7074 14.9997 12.6614C14.8704 12.6123 14.7537 12.5457 14.6497 12.4618C14.5448 12.3772 14.4596 12.2698 14.3938 12.14L14.3937 12.1397C14.3289 12.0084 14.2972 11.8453 14.2972 11.6515C14.2972 11.5068 14.3266 11.3658 14.385 11.2288C14.4436 11.0916 14.5286 10.9683 14.6398 10.8589L14.64 10.8587L14.64 10.8587C14.7533 10.7491 14.8918 10.6599 15.055 10.591C15.2134 10.5223 15.3933 10.482 15.5944 10.4696L15.6218 10.1932L15.6218 10.193C15.6278 10.1368 15.653 10.087 15.6958 10.0442C15.7403 9.99776 15.798 9.975 15.8665 9.975H16.1721H16.1998L16.197 10.0025L16.1457 10.5079C16.3313 10.5443 16.4927 10.6018 16.6295 10.6807C16.7703 10.7601 16.89 10.8462 16.9882 10.9389L17.0037 10.9536L16.9917 10.9712L16.788 11.2687L16.7017 12.449C16.7016 12.449 16.7016 12.449 16.7016 12.4489C16.7732 12.5004 16.8349 12.5612 16.8865 12.6311C16.9401 12.7015 16.9816 12.7827 17.0109 12.8744C17.0405 12.965 17.055 13.0677 17.055 13.1823C17.055 13.355 17.0259 13.518 16.9676 13.6711L16.9676 13.6712C16.9092 13.8227 16.8233 13.9569 16.7102 14.0737C16.597 14.1906 16.4585 14.2861 16.2951 14.3606L16.2949 14.3606C16.1365 14.431 15.9565 14.4748 15.7553 14.4924L15.7251 14.8067L15.7251 14.807C15.7191 14.8632 15.6939 14.9129 15.6511 14.9558C15.6066 15.0022 15.549 15.025 15.4804 15.025H15.1748H15.1472L15.1499 14.9976L15.2013 14.4685C15.002 14.4336 14.811 14.3753 14.6284 14.2936L14.6281 14.2935C14.4402 14.2068 14.2806 14.1026 14.1497 13.9808L14.1339 13.966L14.1462 13.9483L14.4035 13.5756L14.4037 13.5754C14.4275 13.5417 14.459 13.5142 14.4977 13.4929C14.5387 13.4695 14.5823 13.4576 14.6279 13.4576C14.6753 13.4576 14.7229 13.4704 14.7704 13.4951ZM14.7704 13.4951C14.7705 13.4951 14.7707 13.4952 14.7708 13.4952L14.7592 13.5174L14.7701 13.4949C14.7702 13.4949 14.7703 13.495 14.7704 13.4951ZM14.4241 13.5898C14.4456 13.5594 14.4742 13.5344 14.5099 13.5147L14.1667 13.9625L14.4241 13.5898ZM16.1255 13.0798L16.1257 13.0801C16.186 13.1354 16.2168 13.2097 16.2168 13.3056C16.2168 13.4377 16.1813 13.5402 16.1127 13.6159C16.0491 13.686 15.9549 13.7356 15.8276 13.7627L15.9069 12.9444C15.9976 12.9824 16.0702 13.0276 16.1255 13.0798ZM15.3507 11.2617L15.3507 11.2617L15.351 11.2615C15.3983 11.2408 15.4552 11.2243 15.522 11.2123L15.4482 11.9556C15.3557 11.9145 15.2804 11.8661 15.2217 11.8105C15.1611 11.7497 15.1301 11.6707 15.1301 11.571C15.1301 11.5275 15.1376 11.4868 15.1525 11.4488L15.1525 11.4488L15.1526 11.4485C15.1674 11.4092 15.1903 11.3738 15.2217 11.3423C15.2548 11.3109 15.2976 11.2839 15.3507 11.2617Z",
+      "fill": "#A0B1BD",
+      "stroke": "#A0B1BD",
+      "stroke-width": "0.05"
+    },
+    key: 6
+  }, []), api_element("path", {
+    attrs: {
+      "d": "M26.3542 26.6666L26.3542 24.9999C26.3548 23.6329 25.935 22.2918 25.1403 21.1215C24.3455 19.9512 23.206 18.9963 21.8449 18.3599C22.0975 18.342 22.3508 18.3331 22.6042 18.3333C27.7821 18.3333 31.9792 22.0641 31.9792 26.6666L36.6667 26.6666L29.1667 34.9999L21.6667 26.6666L26.3542 26.6666Z",
+      "fill": "#5188AD"
+    },
+    key: 7
+  }, [])])];
 }
+
 var iconActivityListFile = registerTemplate(tmpl$9);
 tmpl$9.stylesheets = [];
-freezeTemplate(tmpl$9);
+tmpl$9.stylesheetTokens = {
+  hostAttribute: "at_icon-templates_iconActivityListFile-host",
+  shadowAttribute: "at_icon-templates_iconActivityListFile"
+};
 
-const $fragment1$8 = parseFragment`<svg width="12" height="11" viewBox="0 0 12 11" fill="none" xmlns="http://www.w3.org/2000/svg"${3}><path d="M8.78129 4.6671L5.20529 1.0911L6.14796 0.148438L11.3333 5.33377L6.14796 10.5191L5.20529 9.57644L8.78129 6.00044H0.666626V4.6671H8.78129Z" fill="#6CAAD3"${3}/></svg>`;
 function tmpl$a($api, $cmp, $slotset, $ctx) {
-  const {st: api_static_fragment} = $api;
-  return [api_static_fragment($fragment1$8(), 1)];
-  /*LWC compiler v2.32.1*/
+  const {
+    h: api_element
+  } = $api;
+  return [api_element("svg", {
+    attrs: {
+      "width": "12",
+      "height": "11",
+      "viewBox": "0 0 12 11",
+      "fill": "none",
+      "xmlns": "http://www.w3.org/2000/svg"
+    },
+    key: 1
+  }, [api_element("path", {
+    attrs: {
+      "d": "M8.78129 4.6671L5.20529 1.0911L6.14796 0.148438L11.3333 5.33377L6.14796 10.5191L5.20529 9.57644L8.78129 6.00044H0.666626V4.6671H8.78129Z",
+      "fill": "#6CAAD3"
+    },
+    key: 0
+  }, [])])];
 }
+
 var iconArrowRight = registerTemplate(tmpl$a);
 tmpl$a.stylesheets = [];
-freezeTemplate(tmpl$a);
+tmpl$a.stylesheetTokens = {
+  hostAttribute: "at_icon-templates_iconArrowRight-host",
+  shadowAttribute: "at_icon-templates_iconArrowRight"
+};
 
-class At_icon extends LightningElement {
+class At_icon extends BaseLightningElement {
   constructor(...args) {
     super(...args);
     this.name = 'message';
@@ -8510,7 +6504,6 @@ class At_icon extends LightningElement {
       return iconArrowRight;
     }
   }
-  /*LWC compiler v2.32.1*/
 }
 registerDecorators(At_icon, {
   publicProps: {

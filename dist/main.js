@@ -6516,7 +6516,81 @@ var Icon = registerComponent(At_icon, {
   tmpl: _tmpl$3
 });
 
+function stylesheet$2(hostSelector, shadowSelector, nativeShadow) {
+  return [".demo", shadowSelector, " {background-color: black;}\nh1", shadowSelector, " {font-size: 30px;color: rgb(91, 44, 199);font-family: Arial, Helvetica, sans-serif;}\n.activity-card", shadowSelector, " {padding: 5px;}\n"].join('');
+}
+var _implicitStylesheets$2 = [stylesheet$2];
+
+function tmpl$b($api, $cmp, $slotset, $ctx) {
+  const {
+    t: api_text,
+    h: api_element
+  } = $api;
+  return [api_element("div", {
+    key: 9
+  }, [api_element("h1", {
+    key: 0
+  }, [api_text("All Activity")]), api_element("div", {
+    classMap: {
+      "activity-card": true
+    },
+    key: 8
+  }, [api_element("div", {
+    classMap: {
+      "activity-card-icon": true
+    },
+    key: 1
+  }, []), api_element("div", {
+    classMap: {
+      "activity-card-event": true
+    },
+    key: 2
+  }, [api_text("Distribution Request2")]), api_element("div", {
+    classMap: {
+      "activity-card-plan": true
+    },
+    key: 3
+  }, [api_text("Distribution Request")]), api_element("div", {
+    classMap: {
+      "activity-card-participant": true
+    },
+    key: 4
+  }, [api_text("Distribution Request")]), api_element("div", {
+    classMap: {
+      "activity-card-amount": true
+    },
+    key: 5
+  }, [api_text("Distribution Request")]), api_element("div", {
+    classMap: {
+      "activity-card-date": true
+    },
+    key: 6
+  }, [api_text("Distribution Request")]), api_element("div", {
+    classMap: {
+      "activity-card-action": true
+    },
+    key: 7
+  }, [])])])];
+}
+
+var _tmpl$4 = registerTemplate(tmpl$b);
+tmpl$b.stylesheets = [];
+
+if (_implicitStylesheets$2) {
+  tmpl$b.stylesheets.push.apply(tmpl$b.stylesheets, _implicitStylesheets$2);
+}
+tmpl$b.stylesheetTokens = {
+  hostAttribute: "c-atsite_allActivity_atsite_allActivity-host",
+  shadowAttribute: "c-atsite_allActivity_atsite_allActivity"
+};
+
+class Atsite_allActivity extends BaseLightningElement {}
+var Atsite_allActivity$1 = registerComponent(Atsite_allActivity, {
+  tmpl: _tmpl$4
+});
+
 customElements.define('c-app', App.CustomElementConstructor);
 customElements.define('c-header', Header$1.CustomElementConstructor);
 customElements.define('c-user-card', UserCard$1.CustomElementConstructor);
 customElements.define('c-at_icon', Icon.CustomElementConstructor);
+customElements.define('c-atsite_all-activity', Atsite_allActivity$1.CustomElementConstructor);

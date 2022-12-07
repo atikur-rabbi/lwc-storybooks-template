@@ -1,8 +1,5 @@
 import { storiesOf } from '@storybook/html';
-// import buildAndRegisterCustomElement from './utils/build-custom-element';
 import Icon from 'c/at_icon';
-
-// buildAndRegisterCustomElement('c-header', Header);
 
 customElements.define('c-at_icon', Icon.CustomElementConstructor);
 
